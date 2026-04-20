@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Wallet, History, AlertCircle, ArrowLeft, Send, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { io, Socket } from 'socket.io-client';
 import { User as UserType } from '../types';
 import { VIP_PLANS } from '../constants';
+import socket from '../lib/socket';
 
 interface WithdrawViewProps {
   user: UserType | null;
   onBack: () => void;
+  isMaintenance?: boolean;
 }
 
-export default function WithdrawView({ user, onBack }: WithdrawViewProps) {
+export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawViewProps) {
   const [amount, setAmount] = useState('');
   const [channel, setChannel] = useState('M-Pesa (Vodacom)');
   const [showConfirm, setShowConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
 
   // Time check logic
   const isWithinTimeRange = () => {
@@ -37,18 +37,18 @@ export default function WithdrawView({ user, onBack }: WithdrawViewProps) {
   };
 
   useEffect(() => {
-    socketRef.current = io();
-    socketRef.current.on('withdrawal_received', () => {
+    const handleReceived = () => {
       alert("Pedido enviado para aprovação do Administrador. Verifique o Chat da Família para notificações.");
       setIsProcessing(false);
       setShowConfirm(false);
       onBack();
-    });
-    return () => { socketRef.current?.disconnect(); };
+    };
+
+    socket.on('withdrawal_received', handleReceived);
+    return () => { socket.off('withdrawal_received', handleReceived); };
   }, [onBack]);
 
   const handleSubmitRequest = () => {
-    if (!socketRef.current) return;
     setIsProcessing(true);
     
     const requestData = {
@@ -58,10 +58,15 @@ export default function WithdrawView({ user, onBack }: WithdrawViewProps) {
       balanceBefore: user?.balance
     };
 
-    socketRef.current.emit('submit_withdrawal', requestData);
+    socket.emit('submit_withdrawal', requestData);
   };
 
   const handleOpenConfirm = () => {
+    if (isMaintenance) {
+      alert("Atenção: O sistema de levantamentos está em manutenção temporária. Por favor, tente mais tarde.");
+      return;
+    }
+
     if (!isWithinTimeRange()) {
       const plan = VIP_PLANS.find(p => p.name === user?.level);
       alert(`Horário de levantamento para o seu nível (${user?.level}) é das ${plan?.withdrawalStart} às ${plan?.withdrawalEnd}.`);

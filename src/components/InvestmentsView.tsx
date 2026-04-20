@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Youtube, CheckCircle2, Play, Timer, ExternalLink, ShieldCheck, Zap, Gem, Crown, AlertTriangle } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
 import { User as UserType, Task as TaskType } from '../types';
+import { VIP_PLANS } from '../constants';
+import socket from '../lib/socket';
 
 interface InvestmentsViewProps {
   user: UserType | null;
+  isMaintenance?: boolean;
 }
 
 const YOUTUBE_TASKS: TaskType[] = [
@@ -20,7 +22,7 @@ const YOUTUBE_TASKS: TaskType[] = [
   { id: 'yt10', title: 'Mercado de Capitais em Moçambique', platform: 'YouTube', reward: 22, videoUrl: 'https://www.youtube.com/embed/_fI-OswR6Yk', duration: 28 },
 ];
 
-export default function InvestmentsView({ user }: InvestmentsViewProps) {
+export default function InvestmentsView({ user, isMaintenance }: InvestmentsViewProps) {
   const [activeTask, setActiveTask] = useState<TaskType | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
@@ -37,6 +39,7 @@ export default function InvestmentsView({ user }: InvestmentsViewProps) {
   };
 
   const dailyTarget = getDailyTarget();
+  const currentPlan = VIP_PLANS.find(p => p.name === (user?.level || 'PreVIP'));
 
   // Rotation Logic: Tasks rotate based on the day of the year
   const getRotatedTasks = () => {
@@ -49,19 +52,16 @@ export default function InvestmentsView({ user }: InvestmentsViewProps) {
     const rotated = [
       ...YOUTUBE_TASKS.slice(startIndex),
       ...YOUTUBE_TASKS.slice(0, startIndex)
-    ];
+    ].map(t => ({
+      ...t,
+      reward: currentPlan ? currentPlan.taskEarning : 0
+    }));
     
     // Return a slice based on daily target or a minimum of 4 for variety
     return rotated.slice(0, Math.max(dailyTarget, 4));
   };
 
   const tasksToDisplay = getRotatedTasks();
-  const socketRef = useRef<Socket | null>(null);
-
-  useEffect(() => {
-    socketRef.current = io();
-    return () => { socketRef.current?.disconnect(); };
-  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -77,6 +77,11 @@ export default function InvestmentsView({ user }: InvestmentsViewProps) {
   }, [isWatching, timeLeft]);
 
   const handleStartTask = (task: TaskType) => {
+    if (isMaintenance) {
+      alert("Atenção: O sistema de tarefas está em manutenção temporária. Por favor, tente mais tarde.");
+      return;
+    }
+
     // Sunday Restriction
     const isSunday = new Date().getDay() === 0;
     if (isSunday) {
@@ -100,7 +105,7 @@ export default function InvestmentsView({ user }: InvestmentsViewProps) {
       setCompletedTasks([...completedTasks, activeTask.id]);
       
       // Notify Admin (Log task on server)
-      socketRef.current?.emit('task_completed', {
+      socket.emit('task_completed', {
         user: user?.phone,
         taskId: activeTask.id,
         reward: activeTask.reward
@@ -125,7 +130,7 @@ export default function InvestmentsView({ user }: InvestmentsViewProps) {
         </div>
         <div className="bg-surface border border-border p-5 rounded-2xl">
           <small className="text-text-secondary uppercase text-[8px] tracking-[2px] block mb-1 font-black">Lucro de Hoje</small>
-          <div className="text-lg font-serif text-accent">{completedTasks.length * 12} MT</div>
+          <div className="text-lg font-serif text-accent">{completedTasks.length * (currentPlan?.taskEarning || 0)} MT</div>
         </div>
       </div>
 

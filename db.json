@@ -1,0 +1,132 @@
+{
+  "messages": [
+    {
+      "id": "1",
+      "user": "Admin",
+      "text": "Bem-vindos à Família MOZA INV! Como posso ajudar hoje?",
+      "time": "09:00",
+      "isAdmin": true
+    },
+    {
+      "id": "2",
+      "user": "M. Carlos",
+      "text": "Bom dia grupo! Alguém já recebeu o rendimento VIP 2?",
+      "time": "09:15",
+      "isAdmin": false
+    },
+    {
+      "id": "oamzdv920",
+      "user": "Admin",
+      "text": "📢 Novo pedido de saque: 2000 MT (e-Mola (Movitel)). Analisar pedido...",
+      "time": "11:56 AM",
+      "isAdmin": true
+    },
+    {
+      "id": "7vg2olzkh",
+      "user": "Admin",
+      "text": "📢 Novo pedido de saque: 100 MT (e-Mola (Movitel)). Analisar pedido...",
+      "time": "12:11 PM",
+      "isAdmin": true
+    }
+  ],
+  "banners": [
+    {
+      "id": "1",
+      "text": "MOZA INVESTIMENTOS LUXURY",
+      "sub": "O seu capital, o nosso prestígio.",
+      "color": "linear-gradient(135deg, #1e293b, #0f172a)",
+      "textColor": "#e3b341",
+      "imageUrl": "https://picsum.photos/seed/luxury/1200/600"
+    },
+    {
+      "id": "2",
+      "text": "OPORTUNIDADE VIP 3",
+      "sub": "Ative hoje e ganhe 15% de bónus imediato.",
+      "color": "linear-gradient(135deg, #14161a, #2d3748)",
+      "textColor": "#e3b341",
+      "imageUrl": "https://picsum.photos/seed/gold/1200/600"
+    }
+  ],
+  "pendingWithdrawals": [
+    {
+      "id": "pd6nv6yqw",
+      "phone": "+55 21 98124-5002",
+      "amount": 2000,
+      "channel": "e-Mola (Movitel)",
+      "balanceBefore": 1000000,
+      "status": "APPROVED",
+      "requestTime": "2026-04-20T11:56:48.830Z"
+    },
+    {
+      "id": "u6qpgxwgd",
+      "phone": "874886158",
+      "amount": 100,
+      "channel": "e-Mola (Movitel)",
+      "balanceBefore": 700,
+      "status": "APPROVED",
+      "requestTime": "2026-04-20T12:11:53.017Z"
+    }
+  ],
+  "pendingApprovals": [
+    {
+      "id": "6ibvh7dsh",
+      "type": "PAYMENT",
+      "user": "874886158",
+      "data": {
+        "fileName": "1000644468.jpg",
+        "amount": 700
+      },
+      "status": "APPROVED",
+      "time": "2026-04-20T12:06:01.481Z"
+    }
+  ],
+  "registeredUsers": [
+    {
+      "phone": "+55 21 98124-5002",
+      "name": "ADMINISTRADOR",
+      "balance": 998000,
+      "fundBalance": 0,
+      "totalProfit": 0,
+      "level": "VIP 4",
+      "password": "admin",
+      "inviteCode": "ADMIN",
+      "tickets": 0
+    },
+    {
+      "phone": "123",
+      "name": "Teste User",
+      "balance": 500,
+      "fundBalance": 0,
+      "totalProfit": 0,
+      "level": "Membro Grátis",
+      "password": "123",
+      "inviteCode": "MOZA2026",
+      "tickets": 0
+    },
+    {
+      "phone": "875376446",
+      "name": "User-6446",
+      "password": "paul12",
+      "inviteCode": "MOZA2026",
+      "balance": 0,
+      "fundBalance": 0,
+      "totalProfit": 0,
+      "level": "VIP 4",
+      "tickets": 0
+    },
+    {
+      "phone": "874886158",
+      "name": "User-6158",
+      "password": "paul1",
+      "inviteCode": "MOZA2026",
+      "balance": 600,
+      "fundBalance": 700,
+      "totalProfit": 0,
+      "level": "VIP 1",
+      "tickets": 0
+    }
+  ],
+  "validInviteCode": "MOZA2026",
+  "appStatus": "OPEN",
+  "closureMessage": "A plataforma está temporariamente em manutenção. Voltaremos em breve!"
+}

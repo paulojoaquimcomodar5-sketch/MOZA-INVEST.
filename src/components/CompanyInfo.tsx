@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, ShieldCheck, Globe, Award, Mail, Phone, MessageCircle, Headset, ArrowUpRight, Send } from 'lucide-react';
 import { Tab } from '../types';
+import SupportBanner from './SupportBanner';
 
 export default function CompanyView() {
   return (
@@ -86,6 +87,8 @@ export function SupportView({ onNavigate }: SupportViewProps) {
         <h3 className="text-white font-serif italic text-2xl">Apoio ao Cliente</h3>
         <div className="h-px bg-border flex-1 ml-6 opacity-50"></div>
       </div>
+
+      <SupportBanner />
 
       {/* Main Support Action: COMMUNITY CHAT */}
       <div className="grid grid-cols-1 gap-4 mb-8">

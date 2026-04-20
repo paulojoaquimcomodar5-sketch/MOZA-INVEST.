@@ -16,6 +16,7 @@ export interface VIPPlan {
   price: number;
   dailyEarning: number;
   tasksPerDay: number;
+  taskEarning: number;
   withdrawalStart?: string; // Format "HH:mm"
   withdrawalEnd?: string;   // Format "HH:mm"
 }

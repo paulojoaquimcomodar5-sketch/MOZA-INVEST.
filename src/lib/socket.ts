@@ -1,5 +1,10 @@
 import { io } from 'socket.io-client';
 
-const socket = io();
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  timeout: 10000,
+});
 
 export default socket;

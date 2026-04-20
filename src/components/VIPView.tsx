@@ -1,5 +1,6 @@
 import { ShieldCheck, Zap, Gem, Crown, Check } from 'lucide-react';
 import { VIP_PLANS } from '../constants';
+import { User, VIPPlan } from '../types';
 
 const VIP_METRIC_MAP: Record<string, { Icon: any, color: string }> = {
   'VIP 1': { Icon: ShieldCheck, color: 'text-blue-400' },
@@ -8,7 +9,12 @@ const VIP_METRIC_MAP: Record<string, { Icon: any, color: string }> = {
   'VIP 4': { Icon: Crown, color: 'text-pink-400' },
 };
 
-export default function VIPView() {
+interface VIPViewProps {
+  user: User | null;
+  onActivate: (plan: VIPPlan) => void;
+}
+
+export default function VIPView({ user, onActivate }: VIPViewProps) {
   return (
     <div className="animate-fade px-6">
       <div className="flex items-center justify-between mb-8">
@@ -20,9 +26,16 @@ export default function VIPView() {
         {VIP_PLANS.map((v) => {
           const metrics = VIP_METRIC_MAP[v.name] || { Icon: ShieldCheck, color: 'text-blue-400' };
           const monthly = v.dailyEarning * 30;
+          const isCurrent = user?.level === v.name;
           
           return (
-            <div key={v.name} className="bg-surface border border-border rounded-xl p-6 relative overflow-hidden group hover:border-accent/40 transition-all">
+            <div key={v.name} className={`bg-surface border rounded-xl p-6 relative overflow-hidden group transition-all ${isCurrent ? 'border-accent shadow-[0_0_20px_rgba(227,179,65,0.1)]' : 'border-border hover:border-accent/40'}`}>
+              {isCurrent && (
+                <div className="absolute top-0 right-0 bg-accent text-bg px-4 py-1 text-[8px] font-black uppercase tracking-widest rounded-bl-xl z-20">
+                  PLANO ATIVO
+                </div>
+              )}
+              
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <metrics.Icon size={80} />
               </div>
@@ -40,14 +53,18 @@ export default function VIPView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6 relative">
-                <div className="bg-bg p-3 rounded-lg border border-border">
-                  <small className="text-text-secondary uppercase text-[9px] block mb-1">Diário</small>
-                  <b className="text-white">{v.dailyEarning} MT</b>
+              <div className="grid grid-cols-3 gap-2 mb-6 relative">
+                <div className="bg-bg p-2 rounded-lg border border-border">
+                  <small className="text-text-secondary uppercase text-[7px] block mb-0.5">Tarefa</small>
+                  <b className="text-white text-[11px]">{v.taskEarning} MT</b>
                 </div>
-                <div className="bg-bg p-3 rounded-lg border border-border">
-                  <small className="text-text-secondary uppercase text-[9px] block mb-1">Mensal</small>
-                  <b className="text-white">{monthly.toLocaleString()} MT</b>
+                <div className="bg-bg p-2 rounded-lg border border-border">
+                  <small className="text-text-secondary uppercase text-[7px] block mb-0.5">Diário</small>
+                  <b className="text-white text-[11px]">{v.dailyEarning} MT</b>
+                </div>
+                <div className="bg-bg p-2 rounded-lg border border-border">
+                  <small className="text-text-secondary uppercase text-[7px] block mb-0.5">Mensal</small>
+                  <b className="text-white text-[11px]">{monthly.toLocaleString()} MT</b>
                 </div>
               </div>
 
@@ -65,8 +82,12 @@ export default function VIPView() {
                 ))}
               </ul>
 
-              <button className="w-full bg-accent text-bg font-bold py-3 rounded-lg text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all">
-                ACTIVAR AGORA
+              <button 
+                onClick={() => onActivate(v)}
+                disabled={isCurrent}
+                className={`w-full font-bold py-3 rounded-lg text-xs uppercase tracking-widest transition-all ${isCurrent ? 'bg-white/5 text-white/20 cursor-default' : 'bg-accent text-bg hover:opacity-90 active:scale-95'}`}
+              >
+                {isCurrent ? 'PLANO ACTUAL' : 'ACTIVAR AGORA'}
               </button>
             </div>
           );
