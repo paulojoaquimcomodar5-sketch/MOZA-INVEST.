@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 

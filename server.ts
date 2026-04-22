@@ -122,8 +122,18 @@ async function startServer() {
     { id: 4, name: 'VIP 4', price: 35000 },
   ];
 
+  app.get("/health", (req, res) => {
+    res.json({ 
+      status: "running", 
+      socketConnected: io.engine.clientsCount,
+      timestamp: new Date().toISOString() 
+    });
+  });
+
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
+
+    socket.on("ping", () => socket.emit("pong"));
 
     // Strict Login Check
     socket.on("login_request", ({ phone, password }) => {

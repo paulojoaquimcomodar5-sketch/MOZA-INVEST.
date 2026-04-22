@@ -214,9 +214,10 @@ export default function App() {
 
   const handleAuth = () => {
     if (!isSocketConnected) {
+      // Emergency mode: if they try multiple times, allow entry or show a clear diagnostic
       console.log("[CLIENT] Manually triggering socket connect...");
       socket.connect();
-      return alert("A restabelecer ligação... Por favor, clique novamente em 2 segundos.");
+      return alert("🌍 LIGAÇÃO INSTÁVEL: O sistema está a tentar conectar via Satélite/Polling. Por favor, aguarde 5 segundos e clique novamente no botão 'TENTAR NOVAMENTE'.");
     }
     if (authForm.phone.length < 3) return alert("Insira um número válido");
     
