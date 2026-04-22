@@ -10,6 +10,16 @@ interface MinesGameProps {
   onUpdateUser: (user: User) => void;
 }
 
+interface MinesHistoryItem {
+  id: string;
+  bet: number;
+  mines: number;
+  multiplier: number;
+  profit: number;
+  win: boolean;
+  time: string;
+}
+
 type CellState = 'hidden' | 'gem' | 'mine';
 
 const GRID_SIZE = 25; // 5x5
@@ -24,6 +34,19 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
   const [nextMultiplier, setNextMultiplier] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [history, setHistory] = useState<MinesHistoryItem[]>([]);
+
+  // Load history from session storage to persist during current session
+  useEffect(() => {
+    const saved = sessionStorage.getItem('mines_history');
+    if (saved) setHistory(JSON.parse(saved));
+  }, []);
+
+  const saveHistory = (item: MinesHistoryItem) => {
+    const newHistory = [item, ...history].slice(0, 10);
+    setHistory(newHistory);
+    sessionStorage.setItem('mines_history', JSON.stringify(newHistory));
+  };
 
   // Calculate multipliers based on number of gems already revealed
   const calculateMultiplier = (numMines: number, numGemsRevealed: number) => {
@@ -103,7 +126,16 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
 
     if (grid[index] === 'mine') {
       setGameState('ended');
-      // User lost, no balance update needed as it was debited at start
+      // Record loss
+      saveHistory({
+        id: Math.random().toString(36).substr(2, 9),
+        bet: betAmount,
+        mines: minesCount,
+        multiplier: 0,
+        profit: -betAmount,
+        win: false,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
     } else {
       // Check if all gems are revealed (extreme win)
       const revealedCount = newRevealed.filter(v => v).length;
@@ -121,6 +153,17 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
     
     // Credit user winnings
     socket.emit("update_user_balance", { phone: user.phone, amount: winAmount });
+    
+    // Record win
+    saveHistory({
+      id: Math.random().toString(36).substr(2, 9),
+      bet: betAmount,
+      mines: minesCount,
+      multiplier: currentMultiplier,
+      profit: winAmount - betAmount,
+      win: true,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
     
     setGameState('cashed_out');
     setIsLoading(false);
@@ -395,6 +438,55 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
           <div className="text-center">
             <p className="text-[8px] font-black text-text-secondary uppercase tracking-[1px] mb-1">Minas Ativas</p>
             <p className="text-white font-mono text-sm">{minesCount}</p>
+          </div>
+        </div>
+
+        {/* History Panel */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h4 className="text-[10px] font-black uppercase tracking-[2px] text-white">Histórico Recente</h4>
+            <span className="text-[8px] text-text-secondary uppercase">Últimas 10 Rodadas</span>
+          </div>
+          
+          <div className="space-y-2">
+            <AnimatePresence initial={false}>
+              {history.length === 0 ? (
+                <div className="bg-surface/20 border border-dashed border-border p-8 rounded-2xl text-center">
+                  <p className="text-[10px] text-text-secondary uppercase tracking-[1px]">Nenhuma rodada no histórico</p>
+                </div>
+              ) : (
+                history.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="bg-surface/50 border border-border p-3 rounded-xl flex items-center justify-between group hover:border-accent/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.win ? 'bg-accent/20 text-accent' : 'bg-red-500/20 text-red-500'}`}>
+                        {item.win ? <Trophy size={16} /> : <Bomb size={16} />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-mono text-xs font-bold">{item.bet} MT</span>
+                          <span className="text-[10px] text-text-secondary">({item.mines} minas)</span>
+                        </div>
+                        <p className="text-[9px] text-text-secondary font-mono">{item.time}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className={`text-xs font-black font-mono ${item.win ? 'text-accent' : 'text-red-500'}`}>
+                        {item.win ? `+${item.profit}` : item.profit} MT
+                      </p>
+                      <p className="text-[9px] text-text-secondary font-bold uppercase tracking-widest">
+                        {item.multiplier}x
+                      </p>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
