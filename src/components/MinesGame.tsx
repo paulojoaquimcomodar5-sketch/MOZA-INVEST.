@@ -94,6 +94,11 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
       return;
     }
 
+    if (minesCount >= GRID_SIZE) {
+      setValidationError(`Número máximo de minas permitido: ${GRID_SIZE - 1}`);
+      return;
+    }
+
     setIsLoading(true);
     
     // Debit user balance via socket
@@ -345,7 +350,7 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
                     onChange={(e) => setMinesCount(parseInt(e.target.value))}
                     className="w-full bg-bg border border-border p-3 rounded-xl text-white text-sm outline-none focus:border-accent appearance-none"
                   >
-                    {[1, 3, 5, 10, 15, 20, 24].map(n => (
+                    {[1, 3, 5, 10, 15, 20].concat(GRID_SIZE - 1 > 20 ? [GRID_SIZE - 1] : []).map(n => (
                       <option key={n} value={n}>{n} Minas</option>
                     ))}
                   </select>
