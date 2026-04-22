@@ -3,18 +3,15 @@ import { TrendingUp, PieChart, Landmark, ArrowUpRight, DollarSign, Wallet, Clock
 import { motion, AnimatePresence } from 'motion/react';
 import { User as UserType } from '../types';
 
+import socket from '../lib/socket';
+
 interface FundViewProps {
   user: UserType | null;
+  funds: any[];
 }
 
-const FUNDS = [
-  { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
-  { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
-  { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
-];
-
-export default function FundView({ user }: FundViewProps) {
-  const [selectedFund, setSelectedFund] = useState<typeof FUNDS[0] | null>(null);
+export default function FundView({ user, funds }: FundViewProps) {
+  const [selectedFund, setSelectedFund] = useState<any | null>(null);
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,19 +21,44 @@ export default function FundView({ user }: FundViewProps) {
       alert(`O montante mínimo para este fundo é ${selectedFund?.min} MT.`);
       return;
     }
-    if (val > (user?.balance || 0)) {
+    if (!user || val > user.balance) {
        alert("Saldo insuficiente em sua conta principal.");
        return;
     }
 
     setIsSubmitting(true);
-    // Simulation of submission to Admin
-    setTimeout(() => {
-      alert("Pedido de subscrição enviado! O saldo será transferido para o Fundo após verificação administrativa.");
+    
+    // Listen for response
+    const handleResponse = (res: { success: boolean, message?: string }) => {
       setIsSubmitting(false);
-      setSelectedFund(null);
-      setAmount('');
-    }, 1500);
+      socket.off('fund_subscription_response', handleResponse);
+      
+      if (res.success) {
+        alert("Pedido de subscrição enviado! O saldo será transferido para o Fundo após verificação administrativa.");
+        setSelectedFund(null);
+        setAmount('');
+      } else {
+        alert(res.message || "Erro ao processar subscrição.");
+      }
+    };
+
+    socket.on('fund_subscription_response', handleResponse);
+
+    // Emit subscription request
+    socket.emit('subscribe_fund', {
+      phone: user.phone,
+      fundId: selectedFund.id,
+      amount: val
+    });
+
+    // Timeout fallback
+    setTimeout(() => {
+      if (isSubmitting) {
+        socket.off('fund_subscription_response', handleResponse);
+        setIsSubmitting(false);
+        alert("Tempo de resposta excedido. Verifique o seu histórico.");
+      }
+    }, 10000);
   };
 
   return (
@@ -81,7 +103,7 @@ export default function FundView({ user }: FundViewProps) {
            <Calculator size={14} className="text-accent" />
         </div>
 
-        {FUNDS.map((fund) => (
+        {funds.map((fund) => (
           <button 
             key={fund.id} 
             onClick={() => setSelectedFund(fund)}

@@ -59,6 +59,11 @@ async function startServer() {
       { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
       { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
       { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
+    ],
+    funds: [
+      { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
+      { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
+      { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
     ]
   };
 
@@ -100,6 +105,13 @@ async function startServer() {
           { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
         ];
       }
+      if (state.funds === undefined) {
+        state.funds = [
+          { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
+          { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
+          { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
+        ];
+      }
 
       console.log("[SERVER] Database loaded successfully.");
     } catch (e) {
@@ -134,6 +146,16 @@ async function startServer() {
     console.log("A user connected:", socket.id);
 
     socket.on("ping", () => socket.emit("pong"));
+
+    // Session Validation (Full Stack Sync)
+    socket.on("validate_session", ({ phone }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user) {
+        const { password: _, ...safeUser } = user;
+        socket.emit("user_data_updated", safeUser);
+        console.log(`[AUTH] Session validated for ${phone}`);
+      }
+    });
 
     // Strict Login Check
     socket.on("login_request", ({ phone, password }) => {
@@ -335,6 +357,7 @@ async function startServer() {
       socket.emit("prizes_update", state.prizes);
       socket.emit("payment_methods_update", state.paymentMethods);
       socket.emit("vip_plans_update", state.vipPlans);
+      socket.emit("funds_update", state.funds);
     });
 
     socket.on("update_vip_plans", (plans) => {
@@ -377,6 +400,39 @@ async function startServer() {
       });
 
       console.log(`[SERVER] ${phone} upgraded to ${plan.name}`);
+    });
+
+    socket.on("subscribe_fund", ({ phone, fundId, amount }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      const fund = state.funds.find(f => f.id === fundId);
+      if (user && fund) {
+        if (user.balance >= amount) {
+          user.balance -= amount;
+          user.fundBalance = (user.fundBalance || 0) + amount;
+          saveState();
+          
+          const { password: _, ...safeUser } = user;
+          socket.emit("user_data_updated", safeUser);
+          socket.emit("fund_subscription_response", { success: true });
+
+          // Submit for admin review
+          const approvalId = Math.random().toString(36).substr(2, 9);
+          state.pendingApprovals.push({
+            id: approvalId,
+            type: 'FUND_SUBSCRIBE',
+            phone: user.phone,
+            name: user.name,
+            fundName: fund.name,
+            amount: amount,
+            status: 'PENDING',
+            time: new Date().toISOString()
+          });
+          saveState();
+          io.emit("new_approval_needed", { id: approvalId, phone: user.phone, type: 'Investimento em Fundo' });
+        } else {
+          socket.emit("fund_subscription_response", { success: false, message: "Saldo insuficiente." });
+        }
+      }
     });
 
     socket.on("get_pending_withdrawals", () => {

@@ -60,6 +60,7 @@ export default function App() {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
   const [prizes, setPrizes] = useState<any[]>([]);
+  const [funds, setFunds] = useState<any[]>([]);
   const [vipPlans, setVipPlans] = useState<any[]>([
     { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
     { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
@@ -115,6 +116,10 @@ export default function App() {
 
     socket.on('vip_plans_update', (data) => {
       setVipPlans(data);
+    });
+
+    socket.on('funds_update', (data) => {
+      setFunds(data);
     });
 
     socket.on('login_response', (res) => {
@@ -202,15 +207,23 @@ export default function App() {
     };
   }, [user?.phone]); // Only re-run if phone number changes
 
-  // Load user from local storage
+  // Load user from local storage and validate with database
   useEffect(() => {
     const savedUser = localStorage.getItem('moza_user');
     if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      setIsAuthenticated(true);
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+        // Sync with backend immediately to get latest balance/level
+        if (isSocketConnected) {
+          socket.emit('validate_session', { phone: parsedUser.phone });
+        }
+      } catch (e) {
+        localStorage.removeItem('moza_user');
+      }
     }
-  }, []);
+  }, [isSocketConnected]);
 
   const handleAuth = () => {
     if (!isSocketConnected) {
@@ -478,7 +491,7 @@ export default function App() {
       case 'withdraw':
         return <WithdrawView user={user} onBack={() => setActiveTab('home')} isMaintenance={maintenanceActive} />;
       case 'fund':
-        return <FundView user={user} />;
+        return <FundView user={user} funds={funds} />;
       case 'company':
         return <CompanyView />;
       case 'support':
