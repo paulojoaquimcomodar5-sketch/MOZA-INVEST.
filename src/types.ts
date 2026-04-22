@@ -1,4 +1,4 @@
-export type Tab = 'home' | 'tasks' | 'vip' | 'team' | 'me' | 'lottery' | 'withdraw' | 'fund' | 'company' | 'support' | 'reports' | 'history' | 'security' | 'settings' | 'chat';
+export type Tab = 'home' | 'tasks' | 'vip' | 'team' | 'me' | 'lottery' | 'withdraw' | 'fund' | 'company' | 'support' | 'reports' | 'history' | 'security' | 'settings' | 'chat' | 'mines';
 
 export interface User {
   phone: string;

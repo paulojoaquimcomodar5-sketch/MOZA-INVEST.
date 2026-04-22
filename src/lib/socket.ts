@@ -1,10 +1,12 @@
 import { io } from 'socket.io-client';
 
 const socket = io({
+  transports: ['polling', 'websocket'],
   reconnection: true,
-  reconnectionAttempts: 10,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
-  timeout: 10000,
+  reconnectionDelayMax: 5000,
+  timeout: 20000,
 });
 
 export default socket;

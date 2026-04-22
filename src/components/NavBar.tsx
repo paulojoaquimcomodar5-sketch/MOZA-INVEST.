@@ -1,4 +1,4 @@
-import { Home, ClipboardList, ShieldCheck, Users, User } from 'lucide-react';
+import { Home, ClipboardList, ShieldCheck, Users, User, Bomb } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Tab } from '../types';
 
@@ -11,6 +11,7 @@ export default function NavBar({ activeTab, onTabChange }: NavBarProps) {
   const tabs: { id: Tab; label: string; Icon: any }[] = [
     { id: 'home', label: 'Início', Icon: Home },
     { id: 'tasks', label: 'Tarefa', Icon: ClipboardList },
+    { id: 'mines', label: 'Mines', Icon: Bomb },
     { id: 'vip', label: 'VIP', Icon: ShieldCheck },
     { id: 'team', label: 'Equipa', Icon: Users },
     { id: 'me', label: 'Perfil', Icon: User },

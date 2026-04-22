@@ -18,7 +18,8 @@ import {
   Crown,
   ShieldCheck,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Bomb
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Tab, User as UserType, VIPPlan } from './types';
@@ -41,6 +42,7 @@ import CommunityChatView from './components/CommunityChatView';
 import PrizeShowcase from './components/PrizeShowcase';
 import AdminDashboard from './components/AdminDashboard';
 import SuccessCelebration from './components/SuccessCelebration';
+import MinesGame from './components/MinesGame';
 import socket from './lib/socket';
 
 export default function App() {
@@ -76,16 +78,27 @@ export default function App() {
   // Global Socket Listeners (only mount once)
   useEffect(() => {
     const onConnect = () => {
+      console.log("[CLIENT] Socket connected:", socket.id);
       setIsSocketConnected(true);
       socket.emit('get_app_status');
     };
-    const onDisconnect = () => setIsSocketConnected(false);
+    const onDisconnect = (reason: string) => {
+      console.warn("[CLIENT] Socket disconnected:", reason);
+      setIsSocketConnected(false);
+    };
+    const onConnectError = (error: any) => {
+      console.error("[CLIENT] Socket connection error:", error);
+      setIsSocketConnected(false);
+    };
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
 
     if (socket.connected) {
       onConnect();
+    } else {
+      socket.connect();
     }
 
     socket.on('app_status_update', (data) => {
@@ -130,6 +143,7 @@ export default function App() {
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
       socket.off('app_status_update');
       socket.off('login_response');
       socket.off('registration_response');
@@ -200,7 +214,9 @@ export default function App() {
 
   const handleAuth = () => {
     if (!isSocketConnected) {
-      return alert("A estabelecer ligação com o servidor... Por favor, aguarde um momento.");
+      console.log("[CLIENT] Manually triggering socket connect...");
+      socket.connect();
+      return alert("A restabelecer ligação... Por favor, clique novamente em 2 segundos.");
     }
     if (authForm.phone.length < 3) return alert("Insira um número válido");
     
@@ -468,6 +484,8 @@ export default function App() {
         return <SupportView onNavigate={setActiveTab} />;
       case 'chat':
         return <CommunityChatView user={user} onBack={() => setActiveTab('support')} />;
+      case 'mines':
+        return <MinesGame user={user} onBack={() => setActiveTab('home')} onUpdateUser={setUser} />;
       case 'reports':
         return <ProfitReportsView onBack={() => setActiveTab('me')} />;
       case 'history':
@@ -586,18 +604,18 @@ export default function App() {
             
             <button 
               onClick={handleAuth}
-              disabled={isAuthLoading || (!isSocketConnected && !isRegisterMode)}
-              className={`w-full bg-accent text-bg font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-95 transition-all mt-6 uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${isAuthLoading || (!isSocketConnected && !isRegisterMode) ? 'opacity-50 cursor-wait' : ''}`}
+              disabled={isAuthLoading}
+              className={`w-full bg-accent text-bg font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-95 transition-all mt-6 uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${isAuthLoading ? 'opacity-50 cursor-wait' : ''}`}
             >
               {isAuthLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
                   <span>PROCESSANDO...</span>
                 </>
-              ) : !isSocketConnected && !isRegisterMode ? (
+              ) : !isSocketConnected ? (
                 <>
                   <div className="w-2 h-2 bg-bg rounded-full animate-pulse" />
-                  <span>LIGANDO...</span>
+                  <span>TENTAR NOVAMENTE</span>
                 </>
               ) : (
                 isRegisterMode ? 'SOLICITAR ACESSO' : 'ENTRAR'
