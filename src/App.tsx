@@ -55,6 +55,7 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
+  const [prizes, setPrizes] = useState<any[]>([]);
 
   const isUserAdmin = user?.phone === '+55 21 98124-5002';
   const maintenanceActive = !isUserAdmin && appStatus.status !== 'OPEN';
@@ -76,6 +77,10 @@ export default function App() {
 
     socket.on('app_status_update', (data) => {
       setAppStatus(data);
+    });
+
+    socket.on('prizes_update', (data) => {
+      setPrizes(data);
     });
 
     socket.on('login_response', (res) => {
@@ -174,7 +179,7 @@ export default function App() {
     if (!isSocketConnected) {
       return alert("A estabelecer ligação com o servidor... Por favor, aguarde um momento.");
     }
-    if (authForm.phone.length < 5) return alert("Insira um número válido");
+    if (authForm.phone.length < 3) return alert("Insira um número válido");
     
     setIsAuthLoading(true);
     if (isRegisterMode) {
@@ -182,12 +187,29 @@ export default function App() {
         setIsAuthLoading(false);
         return alert("Código de Convite e Palavra-passe são obrigatórios!");
       }
+
+      // Invite Code Validation
+      if (authForm.invite.length < 6) {
+        setIsAuthLoading(false);
+        return alert("O Código de Convite deve ter no mínimo 6 caracteres.");
+      }
+      
+      const isAlphanumeric = /^[a-z0-9]+$/i.test(authForm.invite);
+      if (!isAlphanumeric) {
+        setIsAuthLoading(false);
+        return alert("O Código de Convite deve conter apenas letras e números.");
+      }
+
       socket.emit('register_user', { 
         phone: authForm.phone, 
         password: authForm.pass, 
         inviteCode: authForm.invite 
       });
     } else {
+      if (!authForm.pass) {
+        setIsAuthLoading(false);
+        return alert("A palavra-passe é obrigatória!");
+      }
       socket.emit('login_request', { 
         phone: authForm.phone, 
         password: authForm.pass 
@@ -391,7 +413,7 @@ export default function App() {
               ))}
             </div>
 
-            <PrizeShowcase />
+            <PrizeShowcase prizes={prizes} />
           </>
         );
       case 'tasks':
@@ -494,7 +516,7 @@ export default function App() {
             <div className="relative">
               <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
               <input 
-                type="text" 
+                type="tel" 
                 placeholder="Telemóvel"
                 className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
                 value={authForm.phone}

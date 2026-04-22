@@ -17,7 +17,11 @@ import {
   TrendingDown,
   Settings,
   Lock,
-  X
+  X,
+  Plus,
+  Trash2,
+  Edit2,
+  Trophy
 } from 'lucide-react';
 import socket from '../lib/socket';
 import { User } from '../types';
@@ -50,7 +54,14 @@ interface BannerItem {
   imageUrl?: string;
 }
 
-type AdminTab = 'overview' | 'approvals' | 'users' | 'withdrawals' | 'banners' | 'settings';
+interface PrizeItem {
+  id: string;
+  name: string;
+  image: string;
+  desc: string;
+}
+
+type AdminTab = 'overview' | 'approvals' | 'users' | 'withdrawals' | 'banners' | 'prizes' | 'settings';
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -58,6 +69,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [users, setUsers] = useState<User[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [prizes, setPrizes] = useState<PrizeItem[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalBalance: 0,
@@ -68,6 +80,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   });
 
   const [newBanner, setNewBanner] = useState({ text: '', sub: '', color: 'linear-gradient(135deg, #1e293b, #0f172a)', textColor: '#e3b341', imageUrl: '' });
+  const [newPrize, setNewPrize] = useState({ name: '', image: '', desc: '' });
   const [tempInviteCode, setTempInviteCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,6 +101,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     socket.on('users_list', (list: User[]) => setUsers(list));
     socket.on('system_stats', (data: any) => setStats(data));
     socket.on('banners_list', (list: BannerItem[]) => setBanners(list));
+    socket.on('prizes_update', (list: PrizeItem[]) => setPrizes(list));
     socket.on('app_status_update', (data: any) => setAppStatus(data));
     socket.on('withdrawals_list', (list: WithdrawalItem[]) => {
       setWithdrawals(list);
@@ -119,6 +133,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
       socket.off('item_status_updated');
       socket.off('withdrawal_status_updated');
       socket.off('app_status_update');
+      socket.off('prizes_update');
     };
   }, []);
 
@@ -128,6 +143,22 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const handleWithdrawalAction = (id: string, action: 'approve' | 'reject') => {
     socket.emit(action === 'approve' ? 'approve_withdrawal' : 'reject_withdrawal', id);
+  };
+
+  const addPrize = () => {
+    if (!newPrize.name || !newPrize.image) return;
+    const prizeWithId = {
+      ...newPrize,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    const updated = [...prizes, prizeWithId];
+    socket.emit('update_prizes', updated);
+    setNewPrize({ name: '', image: '', desc: '' });
+  };
+
+  const removePrize = (id: string) => {
+    const updated = prizes.filter(p => p.id !== id);
+    socket.emit('update_prizes', updated);
   };
 
   const filteredUsers = users.filter(u => 
@@ -267,6 +298,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               { id: 'withdrawals', label: 'Saques Pends.' },
               { id: 'users', label: 'Utilizadores' },
               { id: 'banners', label: 'Banners' },
+              { id: 'prizes', label: 'Vitrine' },
               { id: 'settings', label: 'Definições' },
             ].map(tab => (
               <button
@@ -455,6 +487,76 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                    </div>
                  ))}
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'prizes' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+               <div className="bg-surface border border-border p-8 rounded-3xl">
+                  <h3 className="text-xl font-serif italic mb-6">Adicionar Novo Prêmio</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                     <div>
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nome do Prêmio</label>
+                        <input 
+                          type="text" 
+                          value={newPrize.name}
+                          onChange={(e) => setNewPrize({...newPrize, name: e.target.value})}
+                          className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
+                          placeholder="Ex: iPhone 17 Pro"
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">URL da Imagem</label>
+                        <input 
+                          type="text" 
+                          value={newPrize.image}
+                          onChange={(e) => setNewPrize({...newPrize, image: e.target.value})}
+                          className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
+                          placeholder="https://..."
+                        />
+                     </div>
+                     <div className="md:col-span-2">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Descrição</label>
+                        <textarea 
+                          value={newPrize.desc}
+                          onChange={(e) => setNewPrize({...newPrize, desc: e.target.value})}
+                          className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent min-h-[100px] resize-none"
+                          placeholder="Detalhes sobre o sorteio..."
+                        />
+                     </div>
+                  </div>
+                  <button 
+                    onClick={addPrize}
+                    className="w-full bg-accent text-bg font-bold py-4 rounded-xl text-[10px] uppercase tracking-[3px] shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus size={16} /> ADICIONAR PRÊMIO
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {prizes.map(p => (
+                    <div key={p.id} className="bg-surface border border-border overflow-hidden rounded-3xl relative group">
+                       <img src={p.image} className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                       <div className="absolute inset-0 bg-linear-to-t from-bg via-bg/40 to-transparent" />
+                       <div className="absolute bottom-0 left-0 right-0 p-6">
+                          <b className="text-white block text-lg font-serif italic">{p.name}</b>
+                          <p className="text-text-secondary text-[10px] mt-1 line-clamp-2">{p.desc}</p>
+                          <button 
+                            onClick={() => removePrize(p.id)}
+                            className="mt-6 w-full bg-red-500/10 text-red-400 py-3 rounded-xl border border-red-500/20 text-[8px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
+                          >
+                             <Trash2 size={12} /> REMOVER
+                          </button>
+                       </div>
+                    </div>
+                  ))}
+                  {prizes.length === 0 && (
+                     <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-3xl mx-auto w-full">
+                        <Trophy size={48} className="text-white/10 mx-auto mb-4" />
+                        <p className="text-text-secondary uppercase tracking-[2px] text-[10px]">Nenhum prêmio na vitrine</p>
+                     </div>
+                  )}
+               </div>
             </motion.div>
           )}
 

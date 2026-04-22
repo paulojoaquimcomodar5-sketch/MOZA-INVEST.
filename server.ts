@@ -41,7 +41,14 @@ async function startServer() {
     ] as any[],
     validInviteCode: "MOZA2026",
     appStatus: 'OPEN' as 'OPEN' | 'MAINTENANCE' | 'CLOSED' | 'RESTRICTED',
-    closureMessage: 'A plataforma está temporariamente em manutenção. Voltaremos em breve!'
+    closureMessage: 'A plataforma está temporariamente em manutenção. Voltaremos em breve!',
+    prizes: [
+      { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
+      { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
+      { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
+      { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
+      { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
+    ]
   };
 
   // Load state from file
@@ -58,6 +65,15 @@ async function startServer() {
 
       if (state.appStatus === undefined) state.appStatus = 'OPEN';
       if (state.closureMessage === undefined) state.closureMessage = 'A plataforma está temporariamente em manutenção. Voltaremos em breve!';
+      if (state.prizes === undefined) {
+        state.prizes = [
+          { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
+          { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
+          { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
+          { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
+          { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
+        ];
+      }
 
       console.log("[SERVER] Database loaded successfully.");
     } catch (e) {
@@ -252,6 +268,13 @@ async function startServer() {
 
     socket.on("get_app_status", () => {
       socket.emit("app_status_update", { status: state.appStatus, message: state.closureMessage });
+      socket.emit("prizes_update", state.prizes);
+    });
+
+    socket.on("update_prizes", (newPrizes) => {
+      state.prizes = newPrizes;
+      saveState();
+      io.emit("prizes_update", state.prizes);
     });
 
     socket.on("activate_vip", ({ phone, planId }) => {
