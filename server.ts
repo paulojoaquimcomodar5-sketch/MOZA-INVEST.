@@ -42,12 +42,23 @@ async function startServer() {
     validInviteCode: "MOZA2026",
     appStatus: 'OPEN' as 'OPEN' | 'MAINTENANCE' | 'CLOSED' | 'RESTRICTED',
     closureMessage: 'A plataforma está temporariamente em manutenção. Voltaremos em breve!',
+    paymentMethods: {
+      mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+      emola: "875376446 (LUISA ZULANE MALUMBE)",
+      paypal: "paulichocomedy@gmail.com"
+    },
     prizes: [
       { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
       { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
       { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
       { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
       { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
+    ],
+    vipPlans: [
+      { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
+      { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
+      { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
+      { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
     ]
   };
 
@@ -65,6 +76,13 @@ async function startServer() {
 
       if (state.appStatus === undefined) state.appStatus = 'OPEN';
       if (state.closureMessage === undefined) state.closureMessage = 'A plataforma está temporariamente em manutenção. Voltaremos em breve!';
+      if (state.paymentMethods === undefined) {
+        state.paymentMethods = {
+          mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+          emola: "875376446 (LUISA ZULANE MALUMBE)",
+          paypal: "paulichocomedy@gmail.com"
+        };
+      }
       if (state.prizes === undefined) {
         state.prizes = [
           { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
@@ -72,6 +90,14 @@ async function startServer() {
           { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
           { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
           { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
+        ];
+      }
+      if (state.vipPlans === undefined) {
+        state.vipPlans = [
+          { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
+          { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
+          { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
+          { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
         ];
       }
 
@@ -101,15 +127,26 @@ async function startServer() {
 
     // Strict Login Check
     socket.on("login_request", ({ phone, password }) => {
-      const user = state.registeredUsers.find(u => u.phone === phone);
-      if (user && user.password === password) {
-        // Return user without password for safety
-        const { password: _, ...safeUser } = user;
-        socket.emit("login_response", { success: true, user: safeUser });
-      } else if (user) {
-        socket.emit("login_response", { success: false, message: "Palavra-passe incorrecta." });
-      } else {
-        socket.emit("login_response", { success: false, message: "Número não registado. Contacte o Administrador." });
+      try {
+        console.log(`[AUTH] Login attempt for: ${phone}`);
+        const user = state.registeredUsers.find(u => (u as any).phone === phone);
+        if (user && user.password === password) {
+          console.log(`[AUTH] Login success: ${phone}`);
+          // Attach phone to socket for targeted emits
+          (socket as any).userPhone = phone;
+          // Return user without password for safety
+          const { password: _, ...safeUser } = user;
+          socket.emit("login_response", { success: true, user: safeUser });
+        } else if (user) {
+          console.warn(`[AUTH] Login failed: Wrong password for ${phone}`);
+          socket.emit("login_response", { success: false, message: "Palavra-passe incorrecta." });
+        } else {
+          console.warn(`[AUTH] Login failed: User not found ${phone}`);
+          socket.emit("login_response", { success: false, message: "Número não registado. Contacte o Administrador." });
+        }
+      } catch (err) {
+        console.error("[SERVER] Login processing error:", err);
+        socket.emit("login_response", { success: false, message: "Erro interno no servidor ao processar o login." });
       }
     });
 
@@ -133,6 +170,9 @@ async function startServer() {
         state.registeredUsers.push(newUser);
         saveState();
         
+        // Attach phone to socket for targeted emits
+        (socket as any).userPhone = userData.phone;
+
         // Auto-login after registration
         const { password: _, ...safeUser } = newUser;
         socket.emit("registration_response", { success: true });
@@ -269,6 +309,20 @@ async function startServer() {
     socket.on("get_app_status", () => {
       socket.emit("app_status_update", { status: state.appStatus, message: state.closureMessage });
       socket.emit("prizes_update", state.prizes);
+      socket.emit("payment_methods_update", state.paymentMethods);
+      socket.emit("vip_plans_update", state.vipPlans);
+    });
+
+    socket.on("update_vip_plans", (plans) => {
+      state.vipPlans = plans;
+      saveState();
+      io.emit("vip_plans_update", state.vipPlans);
+    });
+
+    socket.on("update_payment_methods", (methods) => {
+      state.paymentMethods = methods;
+      saveState();
+      io.emit("payment_methods_update", state.paymentMethods);
     });
 
     socket.on("update_prizes", (newPrizes) => {
@@ -279,7 +333,7 @@ async function startServer() {
 
     socket.on("activate_vip", ({ phone, planId }) => {
       const user = state.registeredUsers.find(u => u.phone === phone);
-      const plan = SERVER_VIP_PLANS.find(p => p.id === planId);
+      const plan = state.vipPlans.find(p => p.id === planId);
 
       if (!user) return socket.emit("vip_activated", { success: false, message: "Utilizador não encontrado." });
       if (!plan) return socket.emit("vip_activated", { success: false, message: "Plano inválido." });
@@ -294,6 +348,7 @@ async function startServer() {
       socket.emit("vip_activated", { 
         success: true, 
         message: `${plan.name} ativado com sucesso!`,
+        planName: plan.name,
         user: safeUser
       });
 
@@ -346,10 +401,17 @@ async function startServer() {
             user.totalProfit += item.data.amount || 0;
           } else if (item.type === 'VIP_UPGRADE') {
             user.level = item.data.planName || user.level;
-            // Balance is NOT deducted here since they are paying OUTSIDE the system usually, 
-            // but if the modal allows them to send proof for a price they paid, 
-            // we just upgrade the level.
             console.log(`[ADMIN] Upgraded ${user.phone} to ${user.level} via approval.`);
+            // Inform the specific user so they see the animation
+            const targetSocketId = [...io.sockets.sockets.values()].find(s => (s as any).userPhone === user.phone)?.id;
+            if (targetSocketId) {
+              io.to(targetSocketId).emit("vip_activated", {
+                success: true,
+                message: `${user.level} ativado com sucesso!`,
+                planName: user.level,
+                user: { phone: user.phone, balance: user.balance, level: user.level }
+              });
+            }
           }
           
           saveState();

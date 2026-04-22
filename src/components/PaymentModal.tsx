@@ -6,10 +6,21 @@ interface PaymentModalProps {
   onConfirm: (file: File | null, amount: number, type?: 'PAYMENT' | 'VIP_UPGRADE') => void;
   initialAmount?: number;
   title?: string;
+  paymentMethods?: {
+    mpesa: string;
+    emola: string;
+    paypal: string;
+  };
 }
 
-export default function PaymentModal({ onClose, onConfirm, initialAmount, title }: PaymentModalProps) {
+export default function PaymentModal({ onClose, onConfirm, initialAmount, title, paymentMethods }: PaymentModalProps) {
   const [val, setVal] = useState(initialAmount?.toString() || '500');
+
+  const methods = paymentMethods || {
+    mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+    emola: "875376446 (LUISA ZULANE MALUMBE)",
+    paypal: "paulichocomedy@gmail.com"
+  };
 
   return (
     <div className="fixed inset-0 bg-bg/95 z-[100] flex items-center justify-center p-6 backdrop-blur-sm">
@@ -26,21 +37,21 @@ export default function PaymentModal({ onClose, onConfirm, initialAmount, title 
         </h3>
         
         <div className="bg-bg p-5 rounded-lg border border-border mb-8 text-xs leading-relaxed">
-          <p className="mb-3 flex justify-between">
-            <span className="text-text-secondary uppercase tracking-widest">M-Pesa</span>
-            <span className="text-white font-bold">858778905 (PAULO JOAQUIM COMODALI)</span>
+          <p className="mb-3 flex justify-between gap-4">
+            <span className="text-text-secondary uppercase tracking-widest shrink-0">M-Pesa</span>
+            <span className="text-white font-bold text-right break-words">{methods.mpesa}</span>
           </p>
-          <p className="mb-3 flex justify-between">
-            <span className="text-text-secondary uppercase tracking-widest">e-Mola</span>
-            <span className="text-white font-bold">875376446 (LUISA ZULANE MALUMBE)</span>
+          <p className="mb-3 flex justify-between gap-4">
+            <span className="text-text-secondary uppercase tracking-widest shrink-0">e-Mola</span>
+            <span className="text-white font-bold text-right break-words">{methods.emola}</span>
           </p>
-          <p className="mb-3 flex justify-between">
-            <span className="text-text-secondary uppercase tracking-widest">PayPal</span>
-            <span className="text-white font-bold">paulichocomedy@gmail.com</span>
+          <p className="mb-3 flex justify-between gap-4">
+            <span className="text-text-secondary uppercase tracking-widest shrink-0">PayPal</span>
+            <span className="text-white font-bold text-right break-words">{methods.paypal}</span>
           </p>
-          <p className="flex justify-between">
-            <span className="text-text-secondary uppercase tracking-widest">Centro de Apoio</span>
-            <span className="text-white font-bold">+55 21 98124-5002</span>
+          <p className="flex justify-between gap-4">
+            <span className="text-text-secondary uppercase tracking-widest shrink-0">Apoio</span>
+            <span className="text-white font-bold text-right">+55 21 98124-5002</span>
           </p>
         </div>
         

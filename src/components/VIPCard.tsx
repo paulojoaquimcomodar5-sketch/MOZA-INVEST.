@@ -24,7 +24,7 @@ const VIPCard: React.FC<VIPCardProps> = ({ plan, onJoin, userLevel }) => {
         <div className="text-[11px] text-text-secondary leading-relaxed">
           Investimento: <span className="text-white font-medium">{plan.price.toLocaleString()} MT</span>
           <br />
-          Rendimento: <span className="text-white font-medium">{plan.dailyEarning} MT/dia</span>
+          Rendimento: <span className="text-white font-medium">{(plan as any).daily || (plan as any).dailyEarning || 0} MT/dia</span>
         </div>
       </div>
       <button 

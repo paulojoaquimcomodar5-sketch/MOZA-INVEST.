@@ -61,7 +61,7 @@ interface PrizeItem {
   desc: string;
 }
 
-type AdminTab = 'overview' | 'approvals' | 'users' | 'withdrawals' | 'banners' | 'prizes' | 'settings';
+type AdminTab = 'overview' | 'approvals' | 'users' | 'withdrawals' | 'banners' | 'prizes' | 'vip' | 'settings';
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -70,6 +70,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [prizes, setPrizes] = useState<PrizeItem[]>([]);
+  const [vipPlans, setVipPlans] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalBalance: 0,
@@ -81,12 +82,14 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const [newBanner, setNewBanner] = useState({ text: '', sub: '', color: 'linear-gradient(135deg, #1e293b, #0f172a)', textColor: '#e3b341', imageUrl: '' });
   const [newPrize, setNewPrize] = useState({ name: '', image: '', desc: '' });
+  const [newVip, setNewVip] = useState({ name: '', price: '0', daily: '0', tasks: '5', color: '#D4AF37', icon: 'zap' });
   const [tempInviteCode, setTempInviteCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({ balance: 0, level: '', tickets: 0 });
   const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
+  const [paymentMethods, setPaymentMethods] = useState({ mpesa: '', emola: '', paypal: '' });
 
   useEffect(() => {
     // Initial fetch
@@ -102,6 +105,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     socket.on('system_stats', (data: any) => setStats(data));
     socket.on('banners_list', (list: BannerItem[]) => setBanners(list));
     socket.on('prizes_update', (list: PrizeItem[]) => setPrizes(list));
+    socket.on('vip_plans_update', (list: any[]) => setVipPlans(list));
+    socket.on('payment_methods_update', (data: any) => setPaymentMethods(data));
     socket.on('app_status_update', (data: any) => setAppStatus(data));
     socket.on('withdrawals_list', (list: WithdrawalItem[]) => {
       setWithdrawals(list);
@@ -134,6 +139,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
       socket.off('withdrawal_status_updated');
       socket.off('app_status_update');
       socket.off('prizes_update');
+      socket.off('payment_methods_update');
+      socket.off('vip_plans_update');
     };
   }, []);
 
@@ -248,6 +255,56 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
+      <div className="bg-surface border border-border p-8 rounded-3xl mt-8">
+         <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+               <CreditCard size={24} />
+            </div>
+            <div>
+               <h3 className="text-xl font-serif italic">Canais de Recebimento</h3>
+               <p className="text-[10px] text-text-secondary uppercase tracking-widest">Números e contas para investimentos</p>
+            </div>
+         </div>
+
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">M-Pesa (Número + Titular)</label>
+               <input 
+                 value={paymentMethods.mpesa} 
+                 onChange={(e) => setPaymentMethods({...paymentMethods, mpesa: e.target.value})}
+                 className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
+               />
+            </div>
+            <div className="space-y-4">
+               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">e-Mola (Número + Titular)</label>
+               <input 
+                 value={paymentMethods.emola} 
+                 onChange={(e) => setPaymentMethods({...paymentMethods, emola: e.target.value})}
+                 className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
+               />
+            </div>
+            <div className="space-y-4">
+               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">PayPal (Email)</label>
+               <input 
+                 value={paymentMethods.paypal} 
+                 onChange={(e) => setPaymentMethods({...paymentMethods, paypal: e.target.value})}
+                 className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
+               />
+            </div>
+            <div className="flex items-end">
+               <button 
+                 onClick={() => {
+                   socket.emit('update_payment_methods', paymentMethods);
+                   alert("Canais de recebimento atualizados com sucesso!");
+                 }}
+                 className="w-full py-4 bg-accent text-bg rounded-xl text-[10px] font-black uppercase tracking-[3px] shadow-lg shadow-accent/20"
+               >
+                  Salvar Alterações
+               </button>
+            </div>
+         </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          <div className="bg-surface border border-border p-8 rounded-3xl">
             <h3 className="text-lg font-serif italic mb-4">Exportar Base de Dados</h3>
@@ -299,6 +356,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               { id: 'users', label: 'Utilizadores' },
               { id: 'banners', label: 'Banners' },
               { id: 'prizes', label: 'Vitrine' },
+              { id: 'vip', label: 'Planos VIP' },
               { id: 'settings', label: 'Definições' },
             ].map(tab => (
               <button
@@ -723,6 +781,94 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
+          {activeTab === 'vip' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20">
+               <div className="bg-surface border border-border p-8 rounded-3xl">
+                  <h3 className="text-xl font-serif italic mb-6">Novo Plano VIP</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="space-y-4">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Nome do VIP</label>
+                        <input type="text" placeholder="Ex: VIP 5" value={newVip.name} onChange={e => setNewVip({...newVip, name: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     </div>
+                     <div className="space-y-4">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Preço (MT)</label>
+                        <input type="number" placeholder="65000" value={newVip.price} onChange={e => setNewVip({...newVip, price: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     </div>
+                     <div className="space-y-4">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Rendimento Diário (MT)</label>
+                        <input type="number" placeholder="5400" value={newVip.daily} onChange={e => setNewVip({...newVip, daily: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     </div>
+                     <div className="space-y-4">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Tarefas p/ Dia</label>
+                        <input type="number" value={newVip.tasks} onChange={e => setNewVip({...newVip, tasks: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     </div>
+                     <div className="space-y-4">
+                        <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Ícone</label>
+                        <select value={newVip.icon} onChange={e => setNewVip({...newVip, icon: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent">
+                           <option value="zap">Raio (Básico)</option>
+                           <option value="diamond">Diamante (Premium)</option>
+                           <option value="crown">Coroa (Elite)</option>
+                           <option value="flame">Fogo (Ultra)</option>
+                           <option value="gem">Gema (Especial)</option>
+                        </select>
+                     </div>
+                     <div className="flex items-end">
+                        <button 
+                          onClick={() => {
+                            if (!newVip.name || !newVip.price || !newVip.daily) return alert("Preencha todos os campos!");
+                            const planWithId = {
+                              ...newVip,
+                              id: Math.random().toString(36).substr(2, 9),
+                              price: parseInt(newVip.price),
+                              daily: parseInt(newVip.daily),
+                              tasks: parseInt(newVip.tasks)
+                            };
+                            const updated = [...vipPlans, planWithId];
+                            socket.emit('update_vip_plans', updated);
+                            setNewVip({ name: '', price: '0', daily: '0', tasks: '5', color: '#D4AF37', icon: 'zap' });
+                            alert("Novo Plano VIP Criado!");
+                          }}
+                          className="w-full py-4 bg-accent text-bg rounded-xl text-[10px] font-black uppercase tracking-[3px] shadow-lg shadow-accent/20 active:scale-95 transition-all"
+                        >
+                           Adicionar Plano
+                        </button>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {vipPlans.map(v => (
+                    <div key={v.id} className="bg-surface border border-white/5 p-6 rounded-3xl relative group">
+                       <button 
+                         onClick={() => {
+                           const updated = vipPlans.filter(p => p.id !== v.id);
+                           socket.emit('update_vip_plans', updated);
+                         }}
+                         className="absolute top-4 right-4 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                       >
+                          Excluir
+                       </button>
+                       <h4 className="text-xl font-serif text-white mb-4">{v.name}</h4>
+                       <div className="space-y-2">
+                          <div className="flex justify-between text-[10px] uppercase font-black text-text-secondary">
+                             <span>Preço:</span>
+                             <span className="text-accent">{v.price.toLocaleString()} MT</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] uppercase font-black text-text-secondary">
+                             <span>Diário:</span>
+                             <span className="text-emerald-400">{v.daily.toLocaleString()} MT</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] uppercase font-black text-text-secondary">
+                             <span>Tarefas:</span>
+                             <span className="text-white">{v.tasks}</span>
+                          </div>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            </motion.div>
+          )}
+
           {activeTab === 'settings' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               {renderSettings()}
@@ -745,10 +891,9 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nível VIP</label>
                      <select value={editForm.level} onChange={(e) => setEditForm({...editForm, level: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent">
                         <option value="Membro Grátis">Membro Grátis</option>
-                        <option value="VIP 1">VIP 1</option>
-                        <option value="VIP 2">VIP 2</option>
-                        <option value="VIP 3">VIP 3</option>
-                        <option value="VIP 4">VIP 4</option>
+                        {vipPlans.map(p => (
+                          <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
                      </select>
                   </div>
                   <div>

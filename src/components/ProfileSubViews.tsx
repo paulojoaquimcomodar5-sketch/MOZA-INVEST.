@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 interface SubViewProps {
@@ -24,34 +24,120 @@ const CATEGORY_DATA = [
 ];
 
 export function ProfitReportsView({ onBack }: SubViewProps) {
-  const [activeFilter, setActiveFilter] = useState('Semana');
+  const [activeFilter, setActiveFilter] = useState('Todos');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [showFilters, setShowFilters] = useState(false);
 
-  const reports = [
-    { date: 'Hoje', amount: '+36.00 MT', desc: 'Rendimento VIP 1', type: 'VIP' },
-    { date: 'Hoje', amount: '+10.00 MT', desc: 'Tarefa: Social Share', type: 'Tarefa' },
-    { date: '18 Abr', amount: '+100.00 MT', desc: 'Comissão Equipa N1', type: 'Equipa' },
-    { date: '18 Abr', amount: '+36.00 MT', desc: 'Rendimento VIP 1', type: 'VIP' },
+  const rawReports = [
+    { id: 1, date: '2026-04-22', amount: 36.00, desc: 'Rendimento VIP 1', type: 'VIP' },
+    { id: 2, date: '2026-04-22', amount: 10.00, desc: 'Tarefa: Social Share', type: 'Tarefa' },
+    { id: 3, date: '2026-04-18', amount: 100.00, desc: 'Comissão Equipa N1', type: 'Equipa' },
+    { id: 4, date: '2026-04-18', amount: 36.00, desc: 'Rendimento VIP 1', type: 'VIP' },
+    { id: 5, date: '2026-04-15', amount: 50.00, desc: 'Comissão Equipa N2', type: 'Equipa' },
+    { id: 6, date: '2026-04-10', amount: 10.00, desc: 'Tarefa: App Reivew', type: 'Tarefa' },
   ];
 
+  const filteredReports = useMemo(() => {
+    return rawReports.filter(r => {
+      const matchType = activeFilter === 'Todos' || r.type === activeFilter;
+      const matchDate = (!dateRange.start || r.date >= dateRange.start) && 
+                        (!dateRange.end || r.date <= dateRange.end);
+      return matchType && matchDate;
+    });
+  }, [activeFilter, dateRange]);
+
+  const exportToCSV = () => {
+    const headers = ['ID', 'Data', 'Valor (MT)', 'Descricao', 'Tipo'];
+    const rows = filteredReports.map(r => [r.id, r.date, r.amount, r.desc, r.type]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(",") + "\n" 
+      + rows.map(e => e.join(",")).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `relatorio_lucros_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="animate-fade px-6 pb-12">
+    <div className="animate-fade px-6 pb-20">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-text-secondary hover:text-accent"><ArrowLeft size={24} /></button>
           <h3 className="text-white font-serif italic text-2xl">Relatórios</h3>
         </div>
         <div className="flex gap-2">
-          {['Semana', 'Mês'].map(f => (
-            <button 
-              key={f}
-              onClick={() => setActiveFilter(f)}
-              className={`text-[9px] uppercase font-black tracking-widest px-3 py-1 rounded-full border transition-all ${activeFilter === f ? 'bg-accent border-accent text-bg' : 'border-border text-text-secondary'}`}
-            >
-              {f}
-            </button>
-          ))}
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2 rounded-lg border transition-all ${showFilters ? 'bg-accent border-accent text-bg' : 'border-border text-text-secondary'}`}
+          >
+            <Filter size={16} />
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="p-2 rounded-lg border border-border text-accent hover:bg-accent/10 transition-all"
+          >
+            <Download size={16} />
+          </button>
         </div>
       </div>
+
+      {showFilters && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }} 
+          animate={{ opacity: 1, height: 'auto' }}
+          className="bg-surface border border-border rounded-2xl p-6 mb-8 space-y-6 overflow-hidden"
+        >
+          <div>
+            <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-4">Filtrar por Período</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={14} />
+                <input 
+                  type="date" 
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                  className="w-full bg-bg border border-border p-3 pl-10 rounded-xl text-white text-[10px] outline-none focus:border-accent" 
+                />
+              </div>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={14} />
+                <input 
+                  type="date" 
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                  className="w-full bg-bg border border-border p-3 pl-10 rounded-xl text-white text-[10px] outline-none focus:border-accent" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-4">Tipo de Rendimento</label>
+            <div className="flex flex-wrap gap-2">
+              {['Todos', 'VIP', 'Tarefa', 'Equipa'].map(f => (
+                <button 
+                  key={f}
+                  onClick={() => setActiveFilter(f)}
+                  className={`text-[9px] uppercase font-black tracking-widest px-4 py-2 rounded-lg border transition-all ${activeFilter === f ? 'bg-accent border-accent text-bg' : 'border-border text-text-secondary hover:border-white/20'}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button 
+            onClick={() => { setDateRange({start: '', end: ''}); setActiveFilter('Todos'); }}
+            className="w-full py-3 text-[9px] uppercase font-black tracking-[3px] text-accent border border-accent/20 rounded-xl hover:bg-accent/5"
+          >
+            Limpar Filtros
+          </button>
+        </motion.div>
+      )}
 
       {/* Chart Section */}
       <div className="bg-surface border border-border p-6 rounded-2xl mb-8">
@@ -131,12 +217,14 @@ export function ProfitReportsView({ onBack }: SubViewProps) {
 
       {/* Recent Transactions */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 px-2">
-          <History size={14} className="text-accent" />
-          <p className="text-[10px] uppercase tracking-[3px] text-text-secondary font-black">Registos Recentes</p>
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <History size={14} className="text-accent" />
+            <p className="text-[10px] uppercase tracking-[3px] text-text-secondary font-black">Registos Encontrados ({filteredReports.length})</p>
+          </div>
         </div>
-        {reports.map((r, i) => (
-          <div key={i} className="bg-surface border border-border p-5 rounded-2xl flex justify-between items-center group hover:border-accent/30 transition-all">
+        {filteredReports.map((r) => (
+          <div key={r.id} className="bg-surface border border-border p-5 rounded-2xl flex justify-between items-center group hover:border-accent/30 transition-all">
             <div className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black ${
                 r.type === 'VIP' ? 'bg-accent/10 text-accent' : 
@@ -150,9 +238,16 @@ export function ProfitReportsView({ onBack }: SubViewProps) {
                 <small className="text-text-secondary uppercase text-[8px] tracking-widest font-black leading-none">{r.date}</small>
               </div>
             </div>
-            <div className="text-emerald-400 font-serif font-bold text-base">{r.amount}</div>
+            <div className="text-emerald-400 font-serif font-bold text-base">+{r.amount.toFixed(2)} MT</div>
           </div>
         ))}
+
+        {filteredReports.length === 0 && (
+          <div className="py-12 bg-surface/50 border border-dashed border-border rounded-2xl text-center">
+            <Filter size={32} className="mx-auto text-text-secondary/20 mb-4" />
+            <p className="text-text-secondary text-[10px] uppercase tracking-widest font-bold">Nenhum resultado nos filtros atuais</p>
+          </div>
+        )}
       </div>
     </div>
   );

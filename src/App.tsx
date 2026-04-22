@@ -40,8 +40,8 @@ import { ProfitReportsView, WithdrawalHistoryView, SecurityView, SettingsView } 
 import CommunityChatView from './components/CommunityChatView';
 import PrizeShowcase from './components/PrizeShowcase';
 import AdminDashboard from './components/AdminDashboard';
+import SuccessCelebration from './components/SuccessCelebration';
 import socket from './lib/socket';
-import { VIP_PLANS } from './constants';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,6 +49,8 @@ export default function App() {
   const [user, setUser] = useState<UserType | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showPayment, setShowPayment] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [activatedPlanName, setActivatedPlanName] = useState('');
   const [activatingPlan, setActivatingPlan] = useState<VIPPlan | null>(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [authForm, setAuthForm] = useState({ phone: '', pass: '', invite: '' });
@@ -56,6 +58,17 @@ export default function App() {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
   const [prizes, setPrizes] = useState<any[]>([]);
+  const [vipPlans, setVipPlans] = useState<any[]>([
+    { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
+    { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
+    { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
+    { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
+  ]);
+  const [paymentMethods, setPaymentMethods] = useState({
+    mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+    emola: "875376446 (LUISA ZULANE MALUMBE)",
+    paypal: "paulichocomedy@gmail.com"
+  });
 
   const isUserAdmin = user?.phone === '+55 21 98124-5002';
   const maintenanceActive = !isUserAdmin && appStatus.status !== 'OPEN';
@@ -83,7 +96,16 @@ export default function App() {
       setPrizes(data);
     });
 
+    socket.on('payment_methods_update', (data) => {
+      setPaymentMethods(data);
+    });
+
+    socket.on('vip_plans_update', (data) => {
+      setVipPlans(data);
+    });
+
     socket.on('login_response', (res) => {
+      console.log("[CLIENT] Received login response:", res);
       setIsAuthLoading(false);
       if (res.success) {
         setUser(res.user);
@@ -95,6 +117,7 @@ export default function App() {
     });
 
     socket.on('registration_response', (res) => {
+      console.log("[CLIENT] Received registration response:", res);
       setIsAuthLoading(false);
       if (res.success) {
         alert("Bem-vindo à MOZA INV GOLD! A sua conta foi ativada com sucesso.");
@@ -182,6 +205,17 @@ export default function App() {
     if (authForm.phone.length < 3) return alert("Insira um número válido");
     
     setIsAuthLoading(true);
+    // Safety timeout to reset loading state if server doesn't respond
+    setTimeout(() => {
+      setIsAuthLoading(prev => {
+        if (prev) {
+          console.warn("[CLIENT] Login timeout reached.");
+          // alert("O servidor está a demorar a responder. Verifique a sua ligação.");
+        }
+        return false;
+      });
+    }, 15000);
+
     if (isRegisterMode) {
       if (!authForm.invite || !authForm.pass) {
         setIsAuthLoading(false);
@@ -210,6 +244,7 @@ export default function App() {
         setIsAuthLoading(false);
         return alert("A palavra-passe é obrigatória!");
       }
+      console.log("[CLIENT] Emitting login_request for:", authForm.phone);
       socket.emit('login_request', { 
         phone: authForm.phone, 
         password: authForm.pass 
@@ -228,7 +263,8 @@ export default function App() {
   useEffect(() => {
     socket.on('vip_activated', (res) => {
       if (res.success) {
-        alert(`PARABÉNS! ${res.message}`);
+        setActivatedPlanName(res.planName || 'VIP');
+        setShowSuccess(true);
         setUser(res.user);
         localStorage.setItem('moza_user', JSON.stringify(res.user));
       } else {
@@ -403,7 +439,7 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
-              {VIP_PLANS.map((plan) => (
+              {vipPlans.map((plan) => (
                 <VIPCard 
                   key={plan.id} 
                   plan={plan} 
@@ -419,7 +455,7 @@ export default function App() {
       case 'tasks':
         return <InvestmentsView user={user} isMaintenance={maintenanceActive} />;
       case 'vip':
-        return <VIPView user={user} onActivate={activateVIP} />;
+        return <VIPView user={user} onActivate={activateVIP} vipPlans={vipPlans} />;
       case 'team':
         return <TeamView />;
       case 'withdraw':
@@ -654,11 +690,19 @@ export default function App() {
           onConfirm={handlePaymentConfirm} 
           initialAmount={activatingPlan?.price}
           title={activatingPlan ? `Ativar ${activatingPlan.name}` : undefined}
+          paymentMethods={paymentMethods}
         />
       )}
 
       {/* Bottom Nav */}
       <NavBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Success Celebration Overlay */}
+      <SuccessCelebration 
+        isVisible={showSuccess} 
+        onClose={() => setShowSuccess(false)} 
+        planName={activatedPlanName} 
+      />
     </div>
   );
 }
