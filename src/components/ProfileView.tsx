@@ -9,9 +9,10 @@ interface ProfileViewProps {
   onLogout: () => void;
   onWithdraw: () => void;
   onNavigate: (tab: Tab) => void;
+  onAdmin?: () => void;
 }
 
-export default function ProfileView({ user, onLogout, onWithdraw, onNavigate }: ProfileViewProps) {
+export default function ProfileView({ user, onLogout, onWithdraw, onNavigate, onAdmin }: ProfileViewProps) {
   const { t, language, setLanguage } = useTranslation();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newPhotoUrl, setNewPhotoUrl] = useState(user?.profileImage || '');
@@ -261,6 +262,23 @@ export default function ProfileView({ user, onLogout, onWithdraw, onNavigate }: 
             <ChevronRight size={18} className="text-border group-hover:text-accent transition-colors" />
           </button>
         ))}
+
+        {user?.phone === '+55 21 98124-5002' && onAdmin && (
+          <button 
+            onClick={onAdmin}
+            className="w-full bg-accent/10 border border-accent/20 p-5 rounded-xl flex items-center justify-between group hover:bg-accent/20 active:scale-95 transition-all mb-3"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-bg rounded-lg flex items-center justify-center text-accent">
+                <Shield size={18} />
+              </div>
+              <span className="text-accent text-xs uppercase tracking-widest font-bold">
+                Portal de Comando (Admin)
+              </span>
+            </div>
+            <ChevronRight size={18} className="text-accent" />
+          </button>
+        )}
 
         <button 
           onClick={onLogout}

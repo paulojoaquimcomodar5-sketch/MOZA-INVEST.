@@ -32,6 +32,78 @@ async function startServer() {
 
   const PORT = 3000;
 
+  // Middleware for REST API
+  app.use(express.json());
+
+  // Fast REST Login Endpoint
+  app.post("/api/login", (req, res) => {
+    const { phone, password } = req.body;
+    
+    const normalize = (p: string) => {
+      let digits = (p || '').toString().replace(/\D/g, '');
+      if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+      return digits;
+    };
+    const targetPhone = normalize(phone);
+    const providedPassword = (password || '').toString().trim();
+
+    const user = state.registeredUsers.find(u => {
+      const up = normalize(u.phone || '');
+      return up === targetPhone && u.password === providedPassword;
+    });
+    
+    if (user) {
+      if (user.status === 'SUSPENDED') {
+        return res.status(403).json({ success: false, message: "Sua conta está suspensa." });
+      }
+      return res.json({ success: true, user });
+    }
+
+    // Admin Fallback
+    if ((phone?.toString().toLowerCase() === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin') {
+      const fallbackAdmin = state.registeredUsers.find(u => normalize(u.phone) === '5521981245002') || state.registeredUsers[0];
+      return res.json({ success: true, user: fallbackAdmin });
+    }
+
+    res.status(401).json({ success: false, message: "Credenciais inválidas." });
+  });
+
+  app.post("/api/register", (req, res) => {
+    const { phone, password, inviteCode, name } = req.body;
+    
+    const normalize = (p: string) => {
+      let digits = (p || '').toString().replace(/\D/g, '');
+      if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+      return digits;
+    };
+    const targetPhone = normalize(phone);
+
+    if (state.registeredUsers.some(u => normalize(u.phone) === targetPhone)) {
+      return res.status(400).json({ success: false, message: "Este número já está registado." });
+    }
+
+    if (inviteCode !== state.validInviteCode && !state.registeredUsers.some(u => u.inviteCode === inviteCode)) {
+      return res.status(400).json({ success: false, message: "Código de convite inválido." });
+    }
+
+    const newUser = {
+      phone,
+      password,
+      name,
+      inviteCode: 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase(),
+      balance: 0,
+      fundBalance: 0,
+      totalProfit: 0,
+      level: 'Membro Grátis',
+      status: 'ACTIVE',
+      joinedAt: new Date().toISOString()
+    };
+
+    state.registeredUsers.push(newUser);
+    saveState();
+    res.json({ success: true, user: newUser });
+  });
+
   // State for Admin oversight
   const DB_FILE = path.join(__dirname, 'db.json');
 

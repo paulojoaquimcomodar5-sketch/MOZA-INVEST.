@@ -283,47 +283,74 @@ export default function App() {
 
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleAuth = () => {
+  const handleAuth = async () => {
     setAuthError(null);
-    const sanitizedPhone = authForm.phone.replace(/\D/g, '');
-    if (sanitizedPhone.length < 3) return setAuthError(t('auth_error_phone'));
+    const isSpecialAdmin = authForm.phone.toLowerCase() === 'admin';
+    const sanitizedPhone = isSpecialAdmin ? 'admin' : authForm.phone.replace(/\D/g, '');
+    
+    if (!isSpecialAdmin && sanitizedPhone.length < 3) return setAuthError(t('auth_error_phone'));
     if (authForm.pass.length < 4) return setAuthError(t('auth_error_pass'));
     
     setIsAuthLoading(true);
 
-    // Auto-connect if disconnected instead of blocking
-    if (!socket.connected) {
-      socket.connect();
-    }
-    
-    // Safety timeout
-    const timeout = setTimeout(() => {
-      setIsAuthLoading(false);
-      setAuthError(t('server_delay'));
-    }, 15000);
+    try {
+      if (isRegisterMode) {
+        if (!authForm.invite) {
+          setIsAuthLoading(false);
+          return setAuthError(t('invite_required'));
+        }
 
-    const onResponse = () => clearTimeout(timeout);
-    socket.once('login_response', onResponse);
-    socket.once('registration_response', onResponse);
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            phone: sanitizedPhone, 
+            password: authForm.pass, 
+            inviteCode: authForm.invite,
+            name: `Investidor ${sanitizedPhone.slice(-3)}`
+          })
+        });
 
-    if (isRegisterMode) {
-      if (!authForm.invite) {
+        const res = await response.json();
         setIsAuthLoading(false);
-        clearTimeout(timeout);
-        return setAuthError(t('invite_required'));
-      }
 
-      socket.emit('register_user', { 
-        phone: sanitizedPhone, 
-        password: authForm.pass, 
-        inviteCode: authForm.invite,
-        name: `Investidor ${sanitizedPhone.slice(-3)}`
-      });
-    } else {
-      socket.emit('login_request', { 
-        phone: sanitizedPhone, 
-        password: authForm.pass 
-      });
+        if (res.success) {
+          alert(t('welcome_msg'));
+          setIsRegisterMode(false);
+          setAuthError(null);
+        } else {
+          setAuthError(res.message);
+        }
+      } else {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            phone: sanitizedPhone, 
+            password: authForm.pass 
+          })
+        });
+
+        const res = await response.json();
+        setIsAuthLoading(false);
+
+        if (res.success) {
+          setUser(res.user);
+          setIsAuthenticated(true);
+          localStorage.setItem('moza_user', JSON.stringify(res.user));
+          setAuthError(null);
+          if (appStatus.welcomeSettings?.active) {
+            setShowWelcome(true);
+          }
+          // Ensure socket is connected for real-time features
+          if (!socket.connected) socket.connect();
+        } else {
+          setAuthError(res.message);
+        }
+      }
+    } catch (err) {
+      setIsAuthLoading(false);
+      setAuthError("Erro na conexão rápida. Verifique sua internet.");
     }
   };
 
@@ -575,7 +602,7 @@ export default function App() {
       case 'settings':
         return <SettingsView onBack={() => setActiveTab('me')} />;
       case 'me':
-        return <ProfileView user={user} onLogout={logout} onWithdraw={() => setActiveTab('withdraw')} onNavigate={setActiveTab} />;
+        return <ProfileView user={user} onLogout={logout} onWithdraw={() => setActiveTab('withdraw')} onNavigate={setActiveTab} onAdmin={() => setIsAdminView(true)} />;
       default:
         return null;
     }
@@ -771,6 +798,14 @@ export default function App() {
                    ? 'O registo requer aprovação prévia e o código de convite oficial da MOZA INV.' 
                    : 'Administrador via WhatsApp para recuperação de credenciais.'}
                </p>
+               {!isSocketConnected && (
+                 <button 
+                   onClick={() => socket.connect()}
+                   className="mt-4 w-full py-2 border border-white/10 rounded-lg text-[8px] text-text-secondary uppercase tracking-widest hover:bg-white/5"
+                 >
+                   Restabelecer Conexão de Dados
+                 </button>
+               )}
             </div>
           </div>
         </motion.div>

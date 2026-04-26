@@ -1,12 +1,12 @@
 import { io } from 'socket.io-client';
 
 const socket = io({
-  transports: ['websocket', 'polling'], // Prefer websocket, fallback to polling
+  transports: ['polling', 'websocket'], // Start with polling for better compatibility on mobile data
   reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-  timeout: 60000,
+  reconnectionAttempts: 20,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
+  timeout: 45000,
   autoConnect: true,
 });
 
