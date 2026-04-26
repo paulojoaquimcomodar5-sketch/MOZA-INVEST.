@@ -51,7 +51,7 @@ export default function VIPView({ user, onActivate, vipPlans }: VIPViewProps) {
                   <b className="text-xl font-serif text-white tracking-wide">{v.name}</b>
                   <div className="flex items-center gap-2">
                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-                     <p className="text-accent text-[10px] font-black uppercase tracking-[2px]">{v.price.toLocaleString()} MT</p>
+                     <p className="text-accent text-[10px] font-black uppercase tracking-[2px]">{(v.price || 0).toLocaleString()} MT</p>
                   </div>
                 </div>
               </div>
@@ -59,11 +59,11 @@ export default function VIPView({ user, onActivate, vipPlans }: VIPViewProps) {
               <div className="grid grid-cols-2 gap-4 mb-6 relative">
                 <div className="bg-bg p-4 rounded-lg border border-border">
                   <small className="text-text-secondary uppercase text-[8px] font-black tracking-widest block mb-1">Rendimento Diário</small>
-                  <b className="text-white text-lg font-serif">{v.daily.toLocaleString()} MT</b>
+                  <b className="text-white text-lg font-serif">{(v.daily || 0).toLocaleString()} MT</b>
                 </div>
                 <div className="bg-bg p-4 rounded-lg border border-border">
                   <small className="text-text-secondary uppercase text-[8px] font-black tracking-widest block mb-1">Total Mensal</small>
-                  <b className="text-white text-lg font-serif">{monthly.toLocaleString()} MT</b>
+                  <b className="text-white text-lg font-serif">{(monthly || 0).toLocaleString()} MT</b>
                 </div>
               </div>
 

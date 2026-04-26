@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { VIPPlan } from '../types';
 
 interface VIPCardProps {
@@ -22,18 +23,40 @@ const VIPCard: React.FC<VIPCardProps> = ({ plan, onJoin, userLevel }) => {
           )}
         </div>
         <div className="text-[11px] text-text-secondary leading-relaxed">
-          Investimento: <span className="text-white font-medium">{plan.price.toLocaleString()} MT</span>
+          Investimento: <span className="text-white font-medium">{(plan.price || 0).toLocaleString()} MT</span>
           <br />
           Rendimento: <span className="text-white font-medium">{(plan as any).daily || (plan as any).dailyEarning || 0} MT/dia</span>
         </div>
       </div>
-      <button 
-        onClick={onJoin}
-        disabled={isCurrent}
-        className={`font-bold py-2 px-6 rounded text-[10px] uppercase tracking-widest transition-all ${isCurrent ? 'bg-white/5 text-white/20 border-white/10' : 'bg-transparent border border-accent text-accent hover:bg-accent hover:text-bg active:scale-95'}`}
-      >
-        {isCurrent ? 'ADQUIRIDO' : 'ACTIVAR AGORA'}
-      </button>
+      
+      {!isCurrent ? (
+        <motion.button 
+          onClick={onJoin}
+          animate={{ 
+            scale: [1, 1.05, 1],
+            boxShadow: [
+              "0 0 0px rgba(227, 179, 65, 0)",
+              "0 0 15px rgba(227, 179, 65, 0.4)",
+              "0 0 0px rgba(227, 179, 65, 0)"
+            ]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="font-bold py-2 px-6 rounded text-[10px] uppercase tracking-widest bg-transparent border border-accent text-accent hover:bg-accent hover:text-bg active:scale-95 transition-all"
+        >
+          ACTIVAR AGORA
+        </motion.button>
+      ) : (
+        <button 
+          disabled
+          className="font-bold py-2 px-6 rounded text-[10px] uppercase tracking-widest bg-white/5 text-white/20 border-white/10"
+        >
+          ADQUIRIDO
+        </button>
+      )}
     </div>
   );
 };

@@ -190,7 +190,7 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
         </div>
         <div className="bg-bg/50 px-3 py-1.5 rounded-full border border-accent/10 flex items-center gap-2 shadow-inner">
           <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          <span className="text-white font-mono text-xs">{user.balance.toLocaleString()} MT</span>
+          <span className="text-white font-mono text-xs">{(user?.balance || 0).toLocaleString()} MT</span>
         </div>
       </div>
 
@@ -432,7 +432,7 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
         <div className="bg-surface/30 rounded-2xl p-4 border border-border flex justify-around">
           <div className="text-center">
             <p className="text-[8px] font-black text-text-secondary uppercase tracking-[1px] mb-1">Saldo de Jogo</p>
-            <p className="text-white font-mono text-sm">{user.balance.toLocaleString()} MT</p>
+            <p className="text-white font-mono text-sm">{(user?.balance || 0).toLocaleString()} MT</p>
           </div>
           <div className="w-[1px] bg-border" />
           <div className="text-center">

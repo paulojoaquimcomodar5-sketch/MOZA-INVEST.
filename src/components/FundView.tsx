@@ -190,7 +190,7 @@ export default function FundView({ user, funds }: FundViewProps) {
                 <div className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-xl">
                   <Wallet size={20} className="text-accent shrink-0" />
                   <div className="text-[9px] uppercase tracking-widest leading-relaxed text-text-secondary">
-                    Saldo Disponível: <span className="text-white font-bold">{user?.balance.toLocaleString()} MT</span>
+                    Saldo Disponível: <span className="text-white font-bold">{(user?.balance || 0).toLocaleString()} MT</span>
                   </div>
                 </div>
               </div>

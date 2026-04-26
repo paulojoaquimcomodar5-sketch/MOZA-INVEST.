@@ -9,24 +9,10 @@ interface Prize {
   desc: string;
 }
 
-const PRIZES: Prize[] = [
-  { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
-  { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
-  { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
-  { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
-  { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
-];
-
 export default function PrizeShowcase({ prizes = [] }: { prizes?: Prize[] }) {
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null);
 
-  const displayPrizes = prizes.length > 0 ? prizes : [
-    { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
-    { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
-    { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
-    { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
-    { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
-  ];
+  if (prizes.length === 0) return null;
 
   return (
     <div className="mt-12 mb-8 px-6">
@@ -42,7 +28,7 @@ export default function PrizeShowcase({ prizes = [] }: { prizes?: Prize[] }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {displayPrizes.map((prize) => (
+        {prizes.map((prize) => (
           <button 
             key={prize.id}
             onClick={() => setSelectedPrize(prize)}

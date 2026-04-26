@@ -1,9 +1,11 @@
 import { Headset, ArrowUpRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from '../lib/i18n';
 
 export default function SupportBanner() {
+  const { t } = useTranslation();
   const openWhatsApp = () => {
-    window.open('https://wa.me/5521981245002', '_blank');
+    window.open('https://whatsapp.com/channel/0029VbBprjsEquiVZjdESc2L', '_blank');
   };
 
   return (
@@ -26,10 +28,10 @@ export default function SupportBanner() {
           <div className="text-left">
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              <span className="text-[9px] font-black text-accent uppercase tracking-[2px]">SUPORTE EXCLUSIVO</span>
+              <span className="text-[9px] font-black text-accent uppercase tracking-[2px]">{t('exclusive_support')}</span>
             </div>
-            <h4 className="text-white text-lg font-serif">Apoio Profissional 24/7</h4>
-            <p className="text-[10px] text-text-secondary uppercase tracking-widest font-bold">Paulo Joaquim Disponível Agora</p>
+            <h4 className="text-white text-lg font-serif">{t('professional_aid')}</h4>
+            <p className="text-[10px] text-text-secondary uppercase tracking-widest font-bold">MOZ INV. disponível agora</p>
           </div>
         </div>
 

@@ -13,6 +13,7 @@ async function startServer() {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
+    maxHttpBufferSize: 1e7, // 10MB to allow larger profile images
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
@@ -35,8 +36,15 @@ async function startServer() {
     ],
     pendingWithdrawals: [] as any[],
     pendingApprovals: [] as any[],
+    auditLogs: [] as any[],
+    tasks: [
+      { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
+      { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
+      { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
+      { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
+    ] as any[],
     registeredUsers: [
-      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
+      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
       { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: '123', inviteCode: 'MOZA2026' }
     ] as any[],
     validInviteCode: "MOZA2026",
@@ -45,7 +53,8 @@ async function startServer() {
     paymentMethods: {
       mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
       emola: "875376446 (LUISA ZULANE MALUMBE)",
-      paypal: "paulichocomedy@gmail.com"
+      paypal: "paulichocomedy@gmail.com",
+      bank: ""
     },
     prizes: [
       { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
@@ -55,10 +64,11 @@ async function startServer() {
       { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
     ],
     vipPlans: [
-      { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
-      { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
-      { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
-      { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
+      { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
+      { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
+      { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
+      { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
+      { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
     ],
     funds: [
       { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
@@ -77,6 +87,7 @@ async function startServer() {
       state.registeredUsers.forEach(u => {
         if (u.level === undefined) u.level = 'Membro Grátis';
         if (u.tickets === undefined) u.tickets = 0;
+        if (u.profileImage === undefined) u.profileImage = '';
       });
 
       if (state.appStatus === undefined) state.appStatus = 'OPEN';
@@ -85,8 +96,17 @@ async function startServer() {
         state.paymentMethods = {
           mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
           emola: "875376446 (LUISA ZULANE MALUMBE)",
-          paypal: "paulichocomedy@gmail.com"
+          paypal: "paulichocomedy@gmail.com",
+          bank: ""
         };
+      }
+      if (!state.tasks || state.tasks.length === 0) {
+        state.tasks = [
+          { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
+          { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
+          { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
+          { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
+        ];
       }
       if (state.prizes === undefined) {
         state.prizes = [
@@ -99,10 +119,11 @@ async function startServer() {
       }
       if (state.vipPlans === undefined) {
         state.vipPlans = [
-          { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
-          { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
-          { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
-          { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
+          { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
+          { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
+          { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
+          { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
+          { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
         ];
       }
       if (state.funds === undefined) {
@@ -127,6 +148,19 @@ async function startServer() {
     }
   };
 
+  const addLog = (action: string, details: string) => {
+    const log = {
+      id: Math.random().toString(36).substr(2, 9),
+      action,
+      details,
+      time: new Date().toISOString()
+    };
+    state.auditLogs = state.auditLogs || [];
+    state.auditLogs.unshift(log);
+    if (state.auditLogs.length > 100) state.auditLogs.pop();
+    io.emit("new_audit_log", log);
+  };
+
   const SERVER_VIP_PLANS = [
     { id: 1, name: 'VIP 1', price: 700 },
     { id: 2, name: 'VIP 2', price: 4000 },
@@ -142,8 +176,74 @@ async function startServer() {
     });
   });
 
+  function getStats() {
+    return {
+      totalUsers: state.registeredUsers.length,
+      totalBalance: state.registeredUsers.reduce((sum: number, u: any) => sum + (u.balance || 0), 0),
+      pendingApprovals: state.pendingApprovals.filter(a => a.status === 'PENDING').length,
+      pendingWithdrawals: state.pendingWithdrawals.filter(w => w.status === 'PENDING').length,
+      activeBanners: state.banners.length,
+      currentInviteCode: state.validInviteCode,
+      totalInvested: state.pendingApprovals ? state.pendingApprovals.filter(a => a.type === 'PAYMENT' && a.status === 'APPROVED').reduce((sum, a) => sum + (a.amount || 0), 0) : 0,
+      totalPaid: state.pendingWithdrawals ? state.pendingWithdrawals.filter(w => w.status === 'APPROVED' || w.status === 'COMPLETED').reduce((sum, w) => sum + (w.amount || 0), 0) : 0
+    };
+  }
+
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
+
+    // Initial Data
+    socket.emit("tasks_list", state.tasks || []);
+
+    socket.on("get_tasks", () => {
+      socket.emit("tasks_list", state.tasks || []);
+    });
+
+    socket.on("get_audit_logs", () => {
+      socket.emit("audit_logs_list", state.auditLogs || []);
+    });
+
+    socket.on("update_profile_image", ({ phone, imageUrl }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user) {
+        user.profileImage = imageUrl;
+        saveState();
+        const { password: _, ...safeUser } = user;
+        socket.emit("user_data_updated", safeUser);
+        io.emit("user_data_updated", safeUser); // Broadcast update to others (including admins)
+        addLog("UPDATE_PROFILE", `Usuário ${phone} atualizou a foto de perfil.`);
+      }
+    });
+
+    socket.on("update_profile_name", ({ phone, name }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user) {
+        user.name = name;
+        saveState();
+        const { password: _, ...safeUser } = user;
+        socket.emit("user_data_updated", safeUser);
+        io.emit("user_data_updated", safeUser); // Broadcast update to others (including admins)
+        addLog("UPDATE_PROFILE", `Usuário ${phone} atualizou o nome para ${name}.`);
+      }
+    });
+
+    socket.on("add_task", (task) => {
+      const newTask = { ...task, id: Math.random().toString(36).substr(2, 9) };
+      state.tasks = state.tasks || [];
+      state.tasks.push(newTask);
+      saveState();
+      io.emit("tasks_list", state.tasks);
+      addLog("ADD_TASK", `Nova tarefa adicionada: ${task.title}`);
+    });
+
+    socket.on("remove_task", (id) => {
+      state.tasks = state.tasks || [];
+      const task = state.tasks.find((t: any) => t.id === id);
+      state.tasks = state.tasks.filter((t: any) => t.id !== id);
+      saveState();
+      io.emit("tasks_list", state.tasks);
+      if (task) addLog("REMOVE_TASK", `Tarefa removida: ${task.title}`);
+    });
 
     socket.on("ping", () => socket.emit("pong"));
 
@@ -205,7 +305,7 @@ async function startServer() {
       if (!state.registeredUsers.find(u => u.phone === userData.phone)) {
         const newUser = { 
           phone: userData.phone, 
-          name: 'User-' + userData.phone.slice(-4), 
+          name: userData.name || 'Investidor Gold', 
           password: userData.password,
           inviteCode: userData.inviteCode || 'MOZA2026',
           balance: 0, 
@@ -224,7 +324,7 @@ async function startServer() {
         socket.emit("registration_response", { success: true });
         socket.emit("login_response", { success: true, user: safeUser });
       } else {
-        socket.emit("registration_response", { success: false, message: "Número já existe." });
+        socket.emit("registration_response", { success: false, message: "Este número já se encontra registado na nossa rede." });
       }
     });
 
@@ -253,15 +353,7 @@ async function startServer() {
     });
 
     socket.on("get_system_stats", () => {
-      const stats = {
-        totalUsers: state.registeredUsers.length,
-        totalBalance: state.registeredUsers.reduce((sum: number, u: any) => sum + u.balance, 0),
-        pendingApprovals: state.pendingApprovals.filter(a => a.status === 'PENDING').length,
-        pendingWithdrawals: state.pendingWithdrawals.filter(w => w.status === 'PENDING').length,
-        activeBanners: state.banners.length,
-        currentInviteCode: state.validInviteCode
-      };
-      socket.emit("system_stats", stats);
+      socket.emit("system_stats", getStats());
     });
 
     socket.on("update_invite_code", (newCode) => {
@@ -275,15 +367,7 @@ async function startServer() {
         isAdmin: true 
       });
       // Refresh stats for all admins
-      const stats = {
-        totalUsers: state.registeredUsers.length,
-        totalBalance: state.registeredUsers.reduce((sum: number, u: any) => sum + u.balance, 0),
-        pendingApprovals: state.pendingApprovals.filter(a => a.status === 'PENDING').length,
-        pendingWithdrawals: state.pendingWithdrawals.filter(w => w.status === 'PENDING').length,
-        activeBanners: state.banners.length,
-        currentInviteCode: state.validInviteCode
-      };
-      io.emit("system_stats", stats);
+      io.emit("system_stats", getStats());
     });
 
     socket.on("get_banners", () => {
@@ -309,9 +393,6 @@ async function startServer() {
         const updatedUser = state.registeredUsers[index];
         // Notify the specific user if they are online (simple broadcast for this applet)
         io.emit("user_data_updated", updatedUser);
-        // Refresh admin list
-        const safeUsers = state.registeredUsers.map(({ password: _, ...u }) => u);
-        io.emit("users_list", safeUsers);
         console.log(`[ADMIN] Manual update for ${phone}:`, updates);
       }
     });
@@ -335,6 +416,12 @@ async function startServer() {
 
     socket.on("remove_banner", (id) => {
       state.banners = state.banners.filter(b => b.id !== id);
+      saveState();
+      io.emit("banners_list", state.banners);
+    });
+
+    socket.on("set_banners", (banners) => {
+      state.banners = banners;
       saveState();
       io.emit("banners_list", state.banners);
     });
@@ -370,6 +457,8 @@ async function startServer() {
       state.paymentMethods = methods;
       saveState();
       io.emit("payment_methods_update", state.paymentMethods);
+      addLog("CONFIG_UPDATE", `Administrador atualizou os métodos de pagamento.`);
+      socket.emit("payment_methods_updated", { success: true, message: "Canais de recebimento atualizados!" });
     });
 
     socket.on("update_prizes", (newPrizes) => {
@@ -447,6 +536,7 @@ async function startServer() {
         const user = state.registeredUsers.find(u => u.phone === w.phone);
         if (user) {
           user.balance -= w.amount;
+          addLog("WITHDRAWAL_APPROVED", `Saque de ${w.amount} MT aprovado para ${user.phone}`);
           saveState();
           io.emit("withdrawal_status_updated", { ...w, updatedUser: user });
         } else {
@@ -465,6 +555,30 @@ async function startServer() {
       }
     });
 
+    socket.on("submit_mission_proof", (data) => {
+      const { phone, proofImage, taskId, missionName } = data;
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user) {
+        const approval = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'MISSION_VERIFICATION',
+          user: phone,
+          data: {
+            taskId,
+            missionName,
+            proofImage,
+            amount: 50 // Fixed reward for mission
+          },
+          status: 'PENDING',
+          time: new Date().toISOString()
+        };
+        state.pendingApprovals.push(approval);
+        saveState();
+        io.emit("new_approval_needed", approval);
+        console.log(`[MISSION] ${phone} submitted proof for ${missionName}`);
+      }
+    });
+
     socket.on("approve_item", (id) => {
       const item = state.pendingApprovals.find(a => a.id === id);
       if (item) {
@@ -473,12 +587,23 @@ async function startServer() {
         // Update user balance/stats based on type
         const user = state.registeredUsers.find(u => u.phone === item.user);
         if (user) {
-          if (item.type === 'PAYMENT') {
+          if (item.type === 'PAYMENT' || item.type === 'MISSION_VERIFICATION') {
             user.balance += item.data.amount || 0;
-            user.fundBalance += item.data.amount || 0;
+            if (item.type === 'PAYMENT') user.fundBalance += item.data.amount || 0;
           } else if (item.type === 'LOTTERY') {
             user.balance += item.data.amount || 0;
             user.totalProfit += item.data.amount || 0;
+          } else if (item.type === 'LOAN_REQUEST') {
+            user.balance += item.amount || 0;
+            user.loanBalance = (user.loanBalance || 0) + (item.totalToRepay || item.amount);
+            
+            // Update loan history status
+            if (user.loanHistory) {
+              const loanRecord = user.loanHistory.find(l => l.id === id);
+              if (loanRecord) loanRecord.status = 'APPROVED';
+            }
+            
+            console.log(`[ADMIN] Approved loan for ${user.phone}: ${item.amount} MT`);
           } else if (item.type === 'VIP_UPGRADE') {
             user.level = item.data.planName || user.level;
             console.log(`[ADMIN] Upgraded ${user.phone} to ${user.level} via approval.`);
@@ -508,6 +633,16 @@ async function startServer() {
       const item = state.pendingApprovals.find(a => a.id === id);
       if (item) {
         item.status = 'REJECTED';
+        
+        // Update user loan history if it was a loan request
+        if (item.type === 'LOAN_REQUEST') {
+          const user = state.registeredUsers.find(u => u.phone === item.user || u.phone === item.phone);
+          if (user && user.loanHistory) {
+            const loanRecord = user.loanHistory.find(l => l.id === id);
+            if (loanRecord) loanRecord.status = 'REJECTED';
+          }
+        }
+
         saveState();
         io.emit("item_status_updated", item);
         console.log(`[ADMIN] Rejected ${item.type} for ${item.user}`);
@@ -537,7 +672,7 @@ async function startServer() {
       if (!isAdmin) {
         setTimeout(() => {
           const autoReplies = [
-            "Olá! Como o ADM Paulo Joaquim pode ajudar?",
+            "Olá! Como o ADM MOZA pode ajudar?",
             "Processando os resultados... Fique atento aos novos rendimentos!",
             "O Suporte VIP está analisando as novas transações. Já recebeu seu lucro hoje?",
             "Bem-vindo à Família! Continue assistindo e lucrando 🚀",
@@ -562,6 +697,22 @@ async function startServer() {
     });
 
     socket.on("submit_withdrawal", (data) => {
+      const user = state.registeredUsers.find(u => u.phone === data.phone);
+      if (!user) return socket.emit("withdrawal_received", { status: 'error', message: 'Utilizador não encontrado.' });
+
+      const plan = state.vipPlans.find(p => p.name === user.level);
+      const today = new Date().getDay(); // 0=Sunday, 1=Monday...
+
+      if (plan && plan.withdrawalDay !== undefined) {
+          if (today !== plan.withdrawalDay) {
+               const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+               return socket.emit("withdrawal_received", { 
+                   status: 'error', 
+                   message: `O levantamento para o seu nível (${user.level}) só é permitido aos ${days[plan.withdrawalDay]}.` 
+               });
+          }
+      }
+
       const withdrawal = {
         id: Math.random().toString(36).substr(2, 9),
         ...data,
@@ -585,9 +736,157 @@ async function startServer() {
       socket.emit("withdrawal_received", { status: 'success' });
     });
 
+    socket.on("admin_broadcast", (data) => {
+      const broadcastMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        user: "ADMINISTRAÇÃO MOZA",
+        text: data.content,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isAdmin: true,
+        isBroadcast: true
+      };
+      
+      state.messages.push(broadcastMessage);
+      if (state.messages.length > 50) state.messages.shift();
+      saveState();
+      
+      io.emit("new_message", broadcastMessage);
+      console.log(`[ADMIN] Broadcast sent: ${data.content}`);
+    });
+
     socket.on("task_completed", (data) => {
-      console.log(`[ADMIN-LOG] User ${data.user} completed task ${data.taskId} for ${data.reward} MT`);
-      // Optional: Add to an admin-only message stream or database
+      console.log(`[TASK] User ${data.user} completed task ${data.taskId} for ${data.reward} MT`);
+      
+      const normalize = (p: string) => p.replace(/[\s\-\+\(\)]/g, '');
+      const targetPhone = normalize(data.user || '');
+
+      const user = state.registeredUsers.find(u => {
+        const up = normalize(u.phone || '');
+        return up === targetPhone || u.phone === data.user;
+      });
+
+      if (user) {
+        user.balance += data.reward;
+        // Reward luck points (tickets) for task completion
+        user.tickets = (user.tickets || 0) + 1;
+        
+        // Update task stats for chart
+        if (data.platform) {
+          user.completedTasksCount = user.completedTasksCount || {};
+          user.completedTasksCount[data.platform] = (user.completedTasksCount[data.platform] || 0) + 1;
+        }
+
+        saveState();
+        
+        const { password: _, ...safeUser } = user;
+        socket.emit("user_data_updated", safeUser);
+        io.emit("user_data_updated", safeUser); // Sync with other devices/admins
+        console.log(`[TASK] Balance updated for ${data.user}: +${data.reward} MT, +1 Ticket`);
+      } else {
+        console.warn(`[TASK] User not found for balancing: ${data.user}`);
+      }
+    });
+
+    socket.on("claim_daily_challenge", ({ phone }) => {
+      const normalize = (p: string) => p.replace(/[\s\-\+\(\)]/g, '');
+      const targetPhone = normalize(phone || '');
+      
+      const user = state.registeredUsers.find(u => {
+        const up = normalize(u.phone || '');
+        return up === targetPhone || u.phone === phone;
+      });
+
+      if (user) {
+        const lastClaim = user.lastChallengeClaim ? new Date(user.lastChallengeClaim).toDateString() : null;
+        const today = new Date().toDateString();
+
+        if (lastClaim === today) {
+           socket.emit("challenge_response", { success: false, message: "Já resgatou o prémio de hoje! Volte amanhã." });
+           return;
+        }
+
+        user.balance += 25;
+        user.tickets = (user.tickets || 0) + 5; // Give 5 tickets too
+        user.lastChallengeClaim = new Date().toISOString();
+        saveState();
+
+        const { password: _, ...safeUser } = user;
+        socket.emit("user_data_updated", safeUser);
+        io.emit("user_data_updated", safeUser);
+        socket.emit("challenge_response", { success: true, reward: 25 });
+        addLog("CHALLENGE", `Usuário ${phone} resgatou o desafio diário.`);
+      }
+    });
+
+    // --- LOAN SYSTEM ---
+    socket.on("request_loan", ({ phone, amount, period }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user) {
+        if (amount < 10000 || amount > 100000) return socket.emit("loan_response", { success: false, message: "Valor fora dos limites permitidos (10.000 - 100.000 MT)." });
+        if (user.loanBalance && user.loanBalance > 0) return socket.emit("loan_response", { success: false, message: "Já possui um empréstimo ativo." });
+
+        // Calculate factors
+        const multiplier = 2.5; // Borrow 10k, receive 25k
+        const interestRate = 0.35; // 35% interest
+        
+        const amountToReceive = Math.floor(amount * multiplier);
+        const totalToRepay = Math.floor(amountToReceive * (1 + interestRate));
+
+        // Add to pending for admin
+        const loanId = Math.random().toString(36).substr(2, 9);
+        const newLoanRecord = {
+          id: loanId,
+          requestedAmount: amount,
+          amount: amountToReceive,
+          totalToRepay: totalToRepay,
+          period: period || 30,
+          status: 'PENDING',
+          date: new Date().toISOString()
+        };
+        
+        user.loanHistory = user.loanHistory || [];
+        user.loanHistory.push(newLoanRecord);
+
+        state.pendingApprovals.push({
+          id: loanId,
+          type: 'LOAN_REQUEST',
+          user: user.phone,
+          phone: user.phone,
+          name: user.name,
+          requestedAmount: amount,
+          amount: amountToReceive,
+          totalToRepay: totalToRepay,
+          period: period || 30,
+          status: 'PENDING',
+          time: new Date().toISOString()
+        });
+        saveState();
+        io.emit("new_approval_needed", { id: loanId, phone: user.phone, type: 'Pedido de Empréstimo' });
+        socket.emit("loan_response", { success: true });
+      }
+    });
+
+    socket.on("repay_loan", ({ phone }) => {
+      const user = state.registeredUsers.find(u => u.phone === phone);
+      if (user && user.loanBalance && user.loanBalance > 0) {
+        if (user.balance >= user.loanBalance) {
+          user.balance -= user.loanBalance;
+          user.loanBalance = 0;
+          
+          // Update loan history status to REPAID
+          if (user.loanHistory) {
+            const activeLoan = user.loanHistory.find(l => l.status === 'APPROVED');
+            if (activeLoan) activeLoan.status = 'REPAID';
+          }
+
+          saveState();
+          const { password: _, ...safeUser } = user;
+          socket.emit("user_data_updated", safeUser);
+          socket.emit("loan_repayment_response", { success: true });
+        } else {
+          socket.emit("loan_repayment_response", { success: false, message: "Saldo insuficiente para liquidar." });
+        }
+      }
     });
 
     socket.on("disconnect", () => {

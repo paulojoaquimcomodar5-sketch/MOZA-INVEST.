@@ -17,9 +17,9 @@ export default function PaymentModal({ onClose, onConfirm, initialAmount, title,
   const [val, setVal] = useState(initialAmount?.toString() || '500');
 
   const methods = paymentMethods || {
-    mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
-    emola: "875376446 (LUISA ZULANE MALUMBE)",
-    paypal: "paulichocomedy@gmail.com"
+    mpesa: "Aguardando...",
+    emola: "Aguardando...",
+    paypal: "Aguardando..."
   };
 
   return (

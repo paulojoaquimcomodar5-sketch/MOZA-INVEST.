@@ -19,9 +19,12 @@ import {
   ShieldCheck,
   AlertCircle,
   CheckCircle2,
-  Bomb
+  Bomb,
+  Gift,
+  Landmark,
+  HelpCircle
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Tab, User as UserType, VIPPlan } from './types';
 import BannerCarousel from './components/BannerCarousel';
 import VIPCard from './components/VIPCard';
@@ -43,9 +46,13 @@ import PrizeShowcase from './components/PrizeShowcase';
 import AdminDashboard from './components/AdminDashboard';
 import SuccessCelebration from './components/SuccessCelebration';
 import MinesGame from './components/MinesGame';
+import LoanView from './components/LoanView';
 import socket from './lib/socket';
 
+import { useTranslation } from './lib/i18n';
+
 export default function App() {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
@@ -57,20 +64,22 @@ export default function App() {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [authForm, setAuthForm] = useState({ phone: '', pass: '', invite: '' });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
   const [prizes, setPrizes] = useState<any[]>([]);
   const [funds, setFunds] = useState<any[]>([]);
   const [vipPlans, setVipPlans] = useState<any[]>([
-    { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, color: '#D4AF37', icon: 'zap' },
-    { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, color: '#4A90E2', icon: 'diamond' },
-    { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, color: '#10B981', icon: 'crown' },
-    { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, color: '#8B5CF6', icon: 'flame' },
+    { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
+    { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
+    { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
+    { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
+    { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
   ]);
   const [paymentMethods, setPaymentMethods] = useState({
-    mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
-    emola: "875376446 (LUISA ZULANE MALUMBE)",
-    paypal: "paulichocomedy@gmail.com"
+    mpesa: "Aguardando...",
+    emola: "Aguardando...",
+    paypal: "Aguardando..."
   });
 
   const isUserAdmin = user?.phone === '+55 21 98124-5002';
@@ -122,6 +131,14 @@ export default function App() {
       setFunds(data);
     });
 
+    socket.on('challenge_response', (res) => {
+      if (res.success) {
+        alert(`🎁 PARABÉNS! Você resgatou o seu bónus diário de ${res.reward} MT.`);
+      } else {
+        alert(res.message);
+      }
+    });
+
     socket.on('login_response', (res) => {
       console.log("[CLIENT] Received login response:", res);
       setIsAuthLoading(false);
@@ -129,8 +146,9 @@ export default function App() {
         setUser(res.user);
         setIsAuthenticated(true);
         localStorage.setItem('moza_user', JSON.stringify(res.user));
+        setAuthError(null);
       } else {
-        alert(res.message);
+        setAuthError(res.message);
       }
     });
 
@@ -140,8 +158,9 @@ export default function App() {
       if (res.success) {
         alert("Bem-vindo à MOZA INV GOLD! A sua conta foi ativada com sucesso.");
         setIsRegisterMode(false);
+        setAuthError(null);
       } else {
-        alert(res.message);
+        setAuthError(res.message);
       }
     });
 
@@ -226,55 +245,41 @@ export default function App() {
   }, [isSocketConnected]);
 
   const handleAuth = () => {
-    if (!isSocketConnected) {
-      // Emergency mode: if they try multiple times, allow entry or show a clear diagnostic
-      console.log("[CLIENT] Manually triggering socket connect...");
-      socket.connect();
-      return alert("🌍 LIGAÇÃO INSTÁVEL: O sistema está a tentar conectar via Satélite/Polling. Por favor, aguarde 5 segundos e clique novamente no botão 'TENTAR NOVAMENTE'.");
-    }
-    if (authForm.phone.length < 3) return alert("Insira um número válido");
+    setAuthError(null);
+    if (authForm.phone.length < 3) return setAuthError("Por favor, insira o seu número de telemóvel");
+    if (authForm.pass.length < 4) return setAuthError("A palavra-passe deve ter pelo menos 4 caracteres");
     
     setIsAuthLoading(true);
-    // Safety timeout to reset loading state if server doesn't respond
-    setTimeout(() => {
-      setIsAuthLoading(prev => {
-        if (prev) {
-          console.warn("[CLIENT] Login timeout reached.");
-          // alert("O servidor está a demorar a responder. Verifique a sua ligação.");
-        }
-        return false;
-      });
+
+    // Auto-connect if disconnected instead of blocking
+    if (!socket.connected) {
+      socket.connect();
+    }
+    
+    // Safety timeout
+    const timeout = setTimeout(() => {
+      setIsAuthLoading(false);
+      setAuthError("O servidor está a demorar a responder. Por favor, verifique a sua ligação à internet.");
     }, 15000);
 
-    if (isRegisterMode) {
-      if (!authForm.invite || !authForm.pass) {
-        setIsAuthLoading(false);
-        return alert("Código de Convite e Palavra-passe são obrigatórios!");
-      }
+    const onResponse = () => clearTimeout(timeout);
+    socket.once('login_response', onResponse);
+    socket.once('registration_response', onResponse);
 
-      // Invite Code Validation
-      if (authForm.invite.length < 6) {
+    if (isRegisterMode) {
+      if (!authForm.invite) {
         setIsAuthLoading(false);
-        return alert("O Código de Convite deve ter no mínimo 6 caracteres.");
-      }
-      
-      const isAlphanumeric = /^[a-z0-9]+$/i.test(authForm.invite);
-      if (!isAlphanumeric) {
-        setIsAuthLoading(false);
-        return alert("O Código de Convite deve conter apenas letras e números.");
+        clearTimeout(timeout);
+        return setAuthError("O Código de Convite é obrigatório!");
       }
 
       socket.emit('register_user', { 
         phone: authForm.phone, 
         password: authForm.pass, 
-        inviteCode: authForm.invite 
+        inviteCode: authForm.invite,
+        name: `Investidor ${authForm.phone.slice(-3)}`
       });
     } else {
-      if (!authForm.pass) {
-        setIsAuthLoading(false);
-        return alert("A palavra-passe é obrigatória!");
-      }
-      console.log("[CLIENT] Emitting login_request for:", authForm.phone);
       socket.emit('login_request', { 
         phone: authForm.phone, 
         password: authForm.pass 
@@ -331,9 +336,9 @@ export default function App() {
       });
       
       if (type === 'VIP_UPGRADE') {
-        alert(`Pedido de Ativação do ${activatingPlan?.name} enviado! O ADM Paulo Joaquim analisará o comprovativo.`);
+        alert(`Pedido de Ativação do ${activatingPlan?.name} enviado! O ADM MOZA analisará o comprovativo.`);
       } else {
-        alert("Recebido! O ADM Paulo Joaquim analisará o comprovativo em instantes.");
+        alert("Recebido! O ADM MOZA analisará o comprovativo em instantes.");
       }
       
       setShowPayment(false);
@@ -394,7 +399,7 @@ export default function App() {
             <div className="bg-accent/10 border-y border-accent/20 mb-6 -mx-6 py-2 overflow-hidden whitespace-nowrap relative">
                <div className="flex animate-marquee gap-10">
                   <span className="text-[9px] font-black uppercase tracking-[2px] text-accent flex items-center gap-2">
-                    <Headset size={10} /> SUPORTE EXCLUSIVO: Paulo Joaquim disponível via WhatsApp 24/7 para membros VIP. 
+                    <Headset size={10} /> SUPORTE EXCLUSIVO: MOZ INV. disponível via WhatsApp 24/7 para membros VIP. 
                   </span>
                   <span className="text-[9px] font-black uppercase tracking-[2px] text-white flex items-center gap-2">
                     <Zap size={10} /> NOTÍCIA: Novos pagamentos VIP 4 efetuados com sucesso!
@@ -410,13 +415,13 @@ export default function App() {
             <div className="bg-bg p-6 rounded-xl border border-border mt-6 mb-8 flex justify-between items-center shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-1 h-full bg-accent opacity-50 group-hover:opacity-100 transition-opacity"></div>
               <div className="space-y-1">
-                <small className="text-text-secondary font-bold uppercase tracking-[1.5px] text-[10px]">Saldo Disponível</small>
+                <small className="text-text-secondary font-bold uppercase tracking-[1.5px] text-[10px]">{t('available_balance')}</small>
                 <div className="text-3xl font-serif text-accent">
                   MZN {(user?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
               </div>
               <div className="text-right space-y-1">
-                <small className="text-text-secondary font-bold uppercase tracking-[1.5px] text-[10px]">Classe VIP</small>
+                <small className="text-text-secondary font-bold uppercase tracking-[1.5px] text-[10px]">{t('vip_class')}</small>
                 <div className="text-white font-bold italic font-serif">{user?.level}</div>
               </div>
             </div>
@@ -439,16 +444,35 @@ export default function App() {
                </div>
             </div>
 
+            {/* DAILY CHALLENGE BANNER */}
+            <div className="bg-linear-to-r from-accent to-accent-muted p-6 rounded-3xl mb-8 relative overflow-hidden group border border-white/10 shadow-lg">
+               <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform">
+                  <Gift size={100} />
+               </div>
+               <div className="relative z-10 flex justify-between items-center">
+                  <div>
+                    <h4 className="text-bg font-black italic text-lg leading-tight">DESAFIO DIÁRIO</h4>
+                    <p className="text-bg/60 text-[9px] uppercase font-bold tracking-[2px] mt-1">Conclua as tarefas e ganhe +25 MT</p>
+                  </div>
+                  <button 
+                    onClick={() => socket.emit('claim_daily_challenge', { phone: user?.phone })}
+                    className="bg-bg text-accent font-black px-6 py-3 rounded-xl text-[9px] uppercase tracking-widest hover:bg-white transition-colors active:scale-95"
+                  >
+                    Resgatar
+                  </button>
+               </div>
+            </div>
+
             <div className="grid grid-cols-4 gap-4 mb-10">
               {[
-                { id: 'recharge', label: 'Recarga', Icon: CircleDollarSign, color: 'text-accent', bg: 'bg-accent-muted', action: () => setShowPayment(true) },
-                { id: 'withdraw', label: 'Saque', Icon: ArrowUpRight, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('withdraw') },
-                { id: 'lottery', label: 'Lotaria', Icon: FerrisWheel, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('lottery') },
-                { id: 'team', label: 'Equipe', Icon: Users, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('team') },
+                { id: 'recharge', label: t('recharge'), Icon: CircleDollarSign, color: 'text-accent', bg: 'bg-accent-muted', action: () => setShowPayment(true) },
+                { id: 'withdraw', label: t('withdraw'), Icon: ArrowUpRight, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('withdraw') },
+                { id: 'loan', label: t('loan'), Icon: Landmark, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('loan') },
+                { id: 'team', label: t('team'), Icon: Users, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('team') },
+                { id: 'tutorial', label: 'Tutorial', Icon: HelpCircle, color: 'text-blue-400', bg: 'bg-blue-400/10', action: () => setActiveTab('tasks') },
                 { id: 'fund', label: 'Fundo', Icon: TrendingUp, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('fund') },
-                { id: 'task', label: 'Tarefa', Icon: FileText, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('tasks') },
+                { id: 'task', label: t('tasks'), Icon: FileText, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('tasks') },
                 { id: 'company', label: 'Empresa', Icon: Building2, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('company') },
-                { id: 'support', label: 'Suporte', Icon: Headset, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('support') }
               ].map((item) => (
                 <button 
                   key={item.id} 
@@ -464,7 +488,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center justify-between mb-6 px-2">
-              <h3 className="text-white font-serif italic text-xl">Planos de Capital</h3>
+              <h3 className="text-white font-serif italic text-xl">{t('capital_plans')}</h3>
               <div className="h-px bg-border flex-1 ml-4 opacity-50"></div>
             </div>
 
@@ -483,17 +507,17 @@ export default function App() {
           </>
         );
       case 'tasks':
-        return <InvestmentsView user={user} isMaintenance={maintenanceActive} />;
+        return <InvestmentsView user={user} isMaintenance={maintenanceActive} vipPlans={vipPlans} />;
       case 'vip':
         return <VIPView user={user} onActivate={activateVIP} vipPlans={vipPlans} />;
       case 'team':
         return <TeamView />;
       case 'withdraw':
-        return <WithdrawView user={user} onBack={() => setActiveTab('home')} isMaintenance={maintenanceActive} />;
+        return <WithdrawView user={user} onBack={() => setActiveTab('home')} isMaintenance={maintenanceActive} vipPlans={vipPlans} />;
       case 'fund':
         return <FundView user={user} funds={funds} />;
       case 'company':
-        return <CompanyView />;
+        return <CompanyView paymentMethods={paymentMethods} />;
       case 'support':
         return <SupportView onNavigate={setActiveTab} />;
       case 'chat':
@@ -504,6 +528,8 @@ export default function App() {
         return <ProfitReportsView onBack={() => setActiveTab('me')} />;
       case 'history':
         return <WithdrawalHistoryView onBack={() => setActiveTab('me')} />;
+      case 'loan':
+        return <LoanView user={user} onBack={() => setActiveTab('home')} />;
       case 'security':
         return <SecurityView onBack={() => setActiveTab('me')} />;
       case 'settings':
@@ -576,73 +602,101 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-surface p-10 rounded-2xl w-full max-w-sm border border-border text-center shadow-2xl"
+          className="bg-surface p-10 rounded-3xl w-full max-w-sm border border-border text-center shadow-2xl relative overflow-hidden"
         >
-          <Logo size="lg" className="mb-10" />
+          {/* Accent glow */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <Logo size="lg" className="mb-4" />
+          <div className="mb-10">
+            <h2 className="text-white font-serif italic text-xl">A sua elite financeira</h2>
+            <p className="text-[9px] uppercase tracking-[2px] text-text-secondary mt-1">Aceda ao seu painel de rendimentos</p>
+          </div>
           
           <div className="space-y-5">
-            <div className="relative">
-              <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-              <input 
-                type="tel" 
-                placeholder="Telemóvel"
-                className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                value={authForm.phone}
-                onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })}
-              />
-            </div>
-            
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-              <input 
-                type="password" 
-                placeholder="Palavra-passe"
-                className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                value={authForm.pass}
-                onChange={(e) => setAuthForm({ ...authForm, pass: e.target.value })}
-              />
-            </div>
-
-            {isRegisterMode && (
               <div className="relative">
-                <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                 <input 
-                  type="text" 
-                  placeholder="Código de Convite"
+                  type="tel" 
+                  placeholder={t('phone_number')}
                   className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.invite}
-                  onChange={(e) => setAuthForm({ ...authForm, invite: e.target.value })}
+                  value={authForm.phone}
+                  onChange={(e) => {
+                    setAuthForm({ ...authForm, phone: e.target.value });
+                    if(authError) setAuthError(null);
+                  }}
                 />
               </div>
-            )}
+              
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                <input 
+                  type="password" 
+                  placeholder={t('password')}
+                  className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                  value={authForm.pass}
+                  onChange={(e) => {
+                    setAuthForm({ ...authForm, pass: e.target.value });
+                    if(authError) setAuthError(null);
+                  }}
+                />
+              </div>
+
+              {isRegisterMode && (
+                <div className="relative">
+                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder={t('invite_code')}
+                    className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                    value={authForm.invite}
+                    onChange={(e) => {
+                      setAuthForm({ ...authForm, invite: e.target.value });
+                      if(authError) setAuthError(null);
+                    }}
+                  />
+                </div>
+              )}
+
+            <AnimatePresence>
+              {authError && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-[10px] flex items-center gap-2"
+                >
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span className="text-left font-medium uppercase tracking-wider">{authError}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             <button 
               onClick={handleAuth}
               disabled={isAuthLoading}
-              className={`w-full bg-accent text-bg font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-95 transition-all mt-6 uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${isAuthLoading ? 'opacity-50 cursor-wait' : ''}`}
+              className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${isAuthLoading ? 'opacity-50 cursor-wait' : ''}`}
             >
               {isAuthLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-                  <span>PROCESSANDO...</span>
-                </>
-              ) : !isSocketConnected ? (
-                <>
-                  <div className="w-2 h-2 bg-bg rounded-full animate-pulse" />
-                  <span>TENTAR NOVAMENTE</span>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>A PROCESSAR...</span>
                 </>
               ) : (
-                isRegisterMode ? 'SOLICITAR ACESSO' : 'ENTRAR'
+                isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase()
               )}
             </button>
             
             <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8">
               {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
               <button 
-                onClick={() => setIsRegisterMode(!isRegisterMode)}
+                onClick={() => {
+                  setIsRegisterMode(!isRegisterMode);
+                  setAuthError(null);
+                }}
                 className="text-accent font-bold hover:underline"
               >
-                {isRegisterMode ? 'Faça Login' : 'Registe-se'}
+                {isRegisterMode ? t('login') : t('register')}
               </button>
             </p>
 
@@ -728,6 +782,16 @@ export default function App() {
 
       {/* Bottom Nav */}
       <NavBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Floating Support Button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setActiveTab('support')}
+        className="fixed right-6 bottom-32 w-14 h-14 bg-accent text-bg rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(255,184,0,0.3)] z-50 animate-bounce-slow"
+      >
+        <Headset size={28} />
+      </motion.button>
 
       {/* Success Celebration Overlay */}
       <SuccessCelebration 

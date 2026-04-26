@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown } from 'lucide-react';
+import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown, Languages, Check } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { useTranslation, Language } from '../lib/i18n';
 
 interface SubViewProps {
   onBack: () => void;
@@ -210,7 +211,7 @@ export function ProfitReportsView({ onBack }: SubViewProps) {
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }}></div>
                 <span className="text-text-secondary text-[9px] uppercase font-bold tracking-widest">{cat.name}</span>
               </div>
-              <b className="text-white text-sm font-serif">{cat.value.toLocaleString()} MT</b>
+              <b className="text-white text-sm font-serif">{(cat.value || 0).toLocaleString()} MT</b>
             </div>
           ))}
         </div>
@@ -386,21 +387,66 @@ export function SecurityView({ onBack }: SubViewProps) {
   );
 }
 
+const LANGUAGES: { id: Language; label: string; flag: string }[] = [
+  { id: 'pt', label: 'Português', flag: '🇵🇹' },
+  { id: 'en', label: 'English', flag: '🇬🇧' },
+  { id: 'ny', label: 'ChiChewa', flag: '🇲🇼' },
+  { id: 'zu', label: 'IsiZulu', flag: '🇿🇦' },
+  { id: 'tsa', label: 'Xichangana', flag: '🇲🇿' },
+];
+
 export function SettingsView({ onBack }: SubViewProps) {
+  const { language, setLanguage, t } = useTranslation();
+
   return (
     <div className="animate-fade px-6">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={onBack} className="text-text-secondary hover:text-accent"><ArrowLeft size={24} /></button>
-        <h3 className="text-white font-serif italic text-2xl">Configurações</h3>
+        <h3 className="text-white font-serif italic text-2xl">{t('settings')}</h3>
       </div>
-      <div className="bg-surface border border-border rounded-xl p-6 text-center">
-        <Settings size={40} className="mx-auto text-accent mb-4 animate-spin-slow" />
-        <h4 className="text-white font-serif text-lg mb-2">Preferências do Sistema</h4>
-        <p className="text-text-secondary text-[10px] uppercase tracking-widest leading-relaxed">
-          Versão da Plantaforma: <span className="text-white">v3.2.0-Gold</span><br/>
-          Limpeza de Cache e Otimização de Rede.
-        </p>
-        <button className="mt-8 text-accent text-[10px] font-black uppercase tracking-[3px] border-b border-accent/30 pb-1">Limpar Dados</button>
+
+      <div className="space-y-6">
+        <div className="bg-surface border border-border rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-accent/20 rounded-lg flex items-center justify-center text-accent">
+              <Languages size={18} />
+            </div>
+            <div>
+              <h4 className="text-white font-serif italic text-lg">{t('language')}</h4>
+              <p className="text-[9px] text-text-secondary uppercase tracking-widest mt-1">Selecione o seu idioma de preferência</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.id}
+                onClick={() => setLanguage(lang.id)}
+                className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                  language === lang.id 
+                    ? 'bg-accent/10 border-accent text-white' 
+                    : 'bg-black/20 border-white/5 text-text-secondary hover:border-white/20'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{lang.flag}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest">{lang.label}</span>
+                </div>
+                {language === lang.id && <Check size={16} className="text-accent" />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-surface border border-border rounded-xl p-6 text-center">
+          <Settings size={40} className="mx-auto text-accent mb-4 animate-spin-slow" />
+          <h4 className="text-white font-serif text-lg mb-2">Preferências do Sistema</h4>
+          <p className="text-text-secondary text-[10px] uppercase tracking-widest leading-relaxed">
+            Versão da Plantaforma: <span className="text-white">v3.2.0-Gold</span><br/>
+            Limpeza de Cache e Otimização de Rede.
+          </p>
+          <button className="mt-8 text-accent text-[10px] font-black uppercase tracking-[3px] border-b border-accent/30 pb-1">Limpar Dados</button>
+        </div>
       </div>
     </div>
   );

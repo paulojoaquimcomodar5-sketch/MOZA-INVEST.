@@ -2,28 +2,36 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Wallet, History, AlertCircle, ArrowLeft, Send, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User as UserType } from '../types';
-import { VIP_PLANS } from '../constants';
 import socket from '../lib/socket';
 
 interface WithdrawViewProps {
   user: UserType | null;
   onBack: () => void;
   isMaintenance?: boolean;
+  vipPlans?: any[];
 }
 
-export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawViewProps) {
+export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [] }: WithdrawViewProps) {
   const [amount, setAmount] = useState('');
   const [channel, setChannel] = useState('M-Pesa (Vodacom)');
   const [showConfirm, setShowConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Time check logic
+  // Time and Day check logic
   const isWithinTimeRange = () => {
     if (!user) return false;
-    const plan = VIP_PLANS.find(p => p.name === user.level);
+    const plan = (vipPlans || []).find(p => p.name === user.level) || (vipPlans && vipPlans[0]);
+    
+    // Day check
+    const now = new Date();
+    const today = now.getDay(); // 0=Sunday, 1=Monday...
+    
+    if (plan && plan.withdrawalDay !== undefined) {
+      if (today !== plan.withdrawalDay) return false;
+    }
+
     if (!plan || !plan.withdrawalStart || !plan.withdrawalEnd) return true;
 
-    const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTimeMinutes = currentHour * 60 + currentMinute;
@@ -37,7 +45,12 @@ export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawVi
   };
 
   useEffect(() => {
-    const handleReceived = () => {
+    const handleReceived = (res: any) => {
+      if (res.status === 'error') {
+          alert(res.message);
+          setIsProcessing(false);
+          return;
+      }
       alert("Pedido enviado para aprovação do Administrador. Verifique o Chat da Família para notificações.");
       setIsProcessing(false);
       setShowConfirm(false);
@@ -68,8 +81,22 @@ export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawVi
     }
 
     if (!isWithinTimeRange()) {
-      const plan = VIP_PLANS.find(p => p.name === user?.level);
-      alert(`Horário de levantamento para o seu nível (${user?.level}) é das ${plan?.withdrawalStart} às ${plan?.withdrawalEnd}.`);
+      const plan = (vipPlans || []).find(p => p.name === user?.level) || (vipPlans && vipPlans[0]);
+      const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+      const today = new Date().getDay();
+
+      if (plan && plan.withdrawalDay !== undefined && today !== plan.withdrawalDay) {
+        alert(`O levantamento para o seu nível (${user?.level}) só é permitido aos ${days[plan.withdrawalDay]}.`);
+        return;
+      }
+
+      if (plan?.withdrawalStart && plan?.withdrawalEnd) {
+        alert(`Horário de levantamento para o seu nível (${user?.level}) é das ${plan?.withdrawalStart} às ${plan?.withdrawalEnd}.`);
+        return;
+      }
+      
+      // Generic error if somehow day check failed but isWithinTimeRange is false
+      alert("Neste momento não pode realizar levantamentos. Verifique o seu calendário VIP.");
       return;
     }
 
@@ -169,7 +196,7 @@ export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawVi
               <div className="bg-bg rounded-2xl p-6 mb-8 border border-border divide-y divide-border">
                 <div className="pb-4 flex justify-between items-center text-left">
                   <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">Valor</span>
-                  <b className="text-white font-serif">{parseFloat(amount).toLocaleString()} MT</b>
+                  <b className="text-white font-serif">{(parseFloat(amount) || 0).toLocaleString()} MT</b>
                 </div>
                 <div className="py-4 flex justify-between items-center text-left">
                   <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">Canal</span>
@@ -177,7 +204,7 @@ export default function WithdrawView({ user, onBack, isMaintenance }: WithdrawVi
                 </div>
                 <div className="pt-4 flex justify-between items-center text-left">
                   <span className="text-accent text-[8px] uppercase font-black tracking-widest">Taxa (5%)</span>
-                  <b className="text-accent font-serif">{(parseFloat(amount) * 0.05).toLocaleString()} MT</b>
+                  <b className="text-accent font-serif">{((parseFloat(amount) || 0) * 0.05).toLocaleString()} MT</b>
                 </div>
               </div>
 

@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
-import { Building2, ShieldCheck, Globe, Award, Mail, Phone, MessageCircle, Headset, ArrowUpRight, Send } from 'lucide-react';
+import { Building2, ShieldCheck, Globe, Award, Mail, Phone, MessageCircle, Headset, ArrowUpRight, Send, Youtube } from 'lucide-react';
 import { Tab } from '../types';
 import SupportBanner from './SupportBanner';
+import { useTranslation } from '../lib/i18n';
 
-export default function CompanyView() {
+interface CompanyViewProps {
+  paymentMethods?: {
+    mpesa: string;
+    emola: string;
+    paypal: string;
+  };
+}
+
+export default function CompanyView({ paymentMethods }: CompanyViewProps) {
+  const { t } = useTranslation();
   return (
     <div className="animate-fade px-6">
       <div className="flex items-center justify-between mb-8">
@@ -62,6 +72,7 @@ interface SupportViewProps {
 }
 
 export function SupportView({ onNavigate }: SupportViewProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -84,7 +95,7 @@ export function SupportView({ onNavigate }: SupportViewProps) {
   return (
     <div className="animate-fade px-6">
       <div className="flex items-center justify-between mb-8">
-        <h3 className="text-white font-serif italic text-2xl">Apoio ao Cliente</h3>
+        <h3 className="text-white font-serif italic text-2xl">{t('support')}</h3>
         <div className="h-px bg-border flex-1 ml-6 opacity-50"></div>
       </div>
 
@@ -120,6 +131,33 @@ export function SupportView({ onNavigate }: SupportViewProps) {
       </div>
 
       {/* NEW SUPPORT FORM */}
+      {/* NEW SOCIAL CHANNELS SECTION */}
+      <div className="bg-surface border border-border rounded-xl p-6 mb-8 shadow-xl">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-red-500/10 rounded-lg">
+                <Youtube className="text-red-500" size={20} />
+             </div>
+             <h4 className="text-white font-serif italic text-lg">Canal Oficial</h4>
+          </div>
+          <span className="text-[8px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded font-black uppercase tracking-widest">YouTube</span>
+        </div>
+        
+        <p className="text-text-secondary text-[10px] uppercase font-bold tracking-widest mb-6 leading-relaxed">
+          Inscreva-se no canal oficial <span className="text-white">MOZA INVEST</span> para receber dicas exclusivas, tutoriais e novidades em tempo real.
+        </p>
+
+        <a 
+          href="https://youtube.com/@mozainvest?si=IfrC6kDU3CzeMR6y" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-full bg-red-600 text-white font-bold py-4 rounded-xl text-[10px] uppercase tracking-[3px] shadow-lg shadow-red-600/20 hover:bg-red-500 active:scale-95 transition-all flex items-center justify-center gap-3"
+        >
+          <Youtube size={16} />
+          INSCREVER-SE NO CANAL
+        </a>
+      </div>
+
       <div className="bg-surface border border-border rounded-xl p-6 mb-10 shadow-xl">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-accent/10 rounded-lg">
@@ -169,12 +207,22 @@ export function SupportView({ onNavigate }: SupportViewProps) {
 
       <div className="grid grid-cols-1 gap-4 mb-10">
         {[
-          { label: 'Centro de Apoio', info: '+55 21 98124-5002', Icon: MessageCircle, color: 'text-emerald-400' },
-          { label: 'M-Pesa (PAULO JOAQUIM COMODALI)', info: '858778905', Icon: Phone, color: 'text-accent' },
-          { label: 'e-Mola (LUISA ZULANE MALUMBE)', info: '875376446', Icon: Phone, color: 'text-accent' },
+          { 
+            label: 'Centro de Apoio', 
+            info: 'Canal Oficial WhatsApp', 
+            Icon: MessageCircle, 
+            color: 'text-emerald-400',
+            action: () => window.open('https://whatsapp.com/channel/0029VbBprjsEquiVZjdESc2L', '_blank')
+          },
+          { label: 'M-Pesa (Recarga)', info: paymentMethods?.mpesa || 'Aguardando...', Icon: Phone, color: 'text-accent' },
+          { label: 'e-Mola (Recarga)', info: paymentMethods?.emola || 'Aguardando...', Icon: Phone, color: 'text-accent' },
           { label: 'Suporte Técnico', info: 'suporte@mozainv.app', Icon: Mail, color: 'text-blue-400' },
         ].map((contact) => (
-          <button key={contact.label} className="bg-surface border border-border p-6 rounded-xl flex items-center justify-between group hover:border-accent/40 active:scale-95 transition-all">
+          <button 
+            key={contact.label} 
+            onClick={() => 'action' in contact ? (contact.action as () => void)() : null}
+            className={`bg-surface border border-border p-6 rounded-xl flex items-center justify-between group transition-all ${'action' in contact ? 'hover:border-accent/40 active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          >
             <div className="flex items-center gap-4 text-left">
               <div className={`w-12 h-12 bg-bg rounded-lg flex items-center justify-center ${contact.color}`}>
                 <contact.Icon size={24} />
@@ -184,6 +232,7 @@ export function SupportView({ onNavigate }: SupportViewProps) {
                 <b className="text-white font-serif">{contact.info}</b>
               </div>
             </div>
+            {'action' in contact && <ArrowUpRight size={18} className="text-accent opacity-0 group-hover:opacity-100 transition-opacity" />}
           </button>
         ))}
       </div>
