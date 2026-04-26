@@ -12,7 +12,8 @@ interface CompanyViewProps {
   };
 }
 
-export default function CompanyView({ paymentMethods }: CompanyViewProps) {
+export default function CompanyView(props: CompanyViewProps) {
+  const { paymentMethods } = props;
   const { t } = useTranslation();
   return (
     <div className="animate-fade px-6">
@@ -69,9 +70,15 @@ export default function CompanyView({ paymentMethods }: CompanyViewProps) {
 
 interface SupportViewProps {
   onNavigate?: (tab: Tab) => void;
+  paymentMethods?: {
+    mpesa: string;
+    emola: string;
+    paypal: string;
+  };
 }
 
-export function SupportView({ onNavigate }: SupportViewProps) {
+export function SupportView(props: SupportViewProps) {
+  const { onNavigate, paymentMethods } = props;
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -214,8 +221,8 @@ export function SupportView({ onNavigate }: SupportViewProps) {
             color: 'text-emerald-400',
             action: () => window.open('https://whatsapp.com/channel/0029VbBprjsEquiVZjdESc2L', '_blank')
           },
-          { label: 'M-Pesa (Recarga)', info: paymentMethods?.mpesa || 'Aguardando...', Icon: Phone, color: 'text-accent' },
-          { label: 'e-Mola (Recarga)', info: paymentMethods?.emola || 'Aguardando...', Icon: Phone, color: 'text-accent' },
+          { label: 'M-Pesa (Recarga)', info: props.paymentMethods?.mpesa || 'Aguardando...', Icon: Phone, color: 'text-accent' },
+          { label: 'e-Mola (Recarga)', info: props.paymentMethods?.emola || 'Aguardando...', Icon: Phone, color: 'text-accent' },
           { label: 'Suporte Técnico', info: 'suporte@mozainv.app', Icon: Mail, color: 'text-blue-400' },
         ].map((contact) => (
           <button 

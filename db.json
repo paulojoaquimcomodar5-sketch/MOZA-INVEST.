@@ -137,6 +137,18 @@
   ],
   "auditLogs": [
     {
+      "id": "0ocbpm2gp",
+      "action": "CONFIG_UPDATE",
+      "details": "Administrador atualizou os métodos de pagamento.",
+      "time": "2026-04-26T06:55:36.480Z"
+    },
+    {
+      "id": "jc4sx1bhc",
+      "action": "CONFIG_UPDATE",
+      "details": "Administrador atualizou os métodos de pagamento.",
+      "time": "2026-04-26T06:55:35.671Z"
+    },
+    {
       "id": "ny162cida",
       "action": "ADD_TASK",
       "details": "Nova tarefa adicionada: Compras online foram proibidas em Moçambique?",
@@ -188,7 +200,7 @@
     {
       "phone": "+55 21 98124-5002",
       "name": "ADMINISTRADOR",
-      "balance": 155440000,
+      "balance": 165439910,
       "fundBalance": 0,
       "totalProfit": 0,
       "level": "VIP 4",
@@ -212,7 +224,7 @@
       "totalProfit": 0,
       "level": "Membro Grátis",
       "password": "123",
-      "inviteCode": "MOZA2026",
+      "inviteCode": "MZ-EBPDBO",
       "tickets": 0,
       "profileImage": ""
     },
@@ -220,7 +232,7 @@
       "phone": "870000000",
       "name": "User-6446",
       "password": "paul12",
-      "inviteCode": "MOZA2026",
+      "inviteCode": "MZ-W2JPH7",
       "balance": 0,
       "fundBalance": 0,
       "totalProfit": 0,
@@ -232,12 +244,38 @@
       "phone": "874886158",
       "name": "User-6158",
       "password": "paul1",
-      "inviteCode": "MOZA2026",
+      "inviteCode": "MZ-34YZUP",
       "balance": 1586,
       "fundBalance": 700,
       "totalProfit": 0,
       "level": "VIP 1",
       "tickets": 0,
+      "profileImage": ""
+    },
+    {
+      "phone": "875376441",
+      "name": "Investidor 441",
+      "password": "paul12",
+      "inviteCode": "MZ-4A4BQU",
+      "balance": 25,
+      "fundBalance": 0,
+      "totalProfit": 0,
+      "level": "Membro Grátis",
+      "upline": "SISTEMA",
+      "tickets": 5,
+      "profileImage": "",
+      "lastChallengeClaim": "2026-04-26T08:34:55.307Z"
+    },
+    {
+      "phone": "875376446",
+      "name": "LUISA ZULANE MALUMBE",
+      "password": "admin",
+      "inviteCode": "LUISA",
+      "balance": 1000000,
+      "fundBalance": 0,
+      "totalProfit": 0,
+      "level": "VIP 4",
+      "tickets": 1000,
       "profileImage": ""
     }
   ],
@@ -245,8 +283,8 @@
   "appStatus": "OPEN",
   "closureMessage": "A plataforma está temporariamente em manutenção. Voltaremos em breve!",
   "paymentMethods": {
-    "mpesa": "Aguardando...",
-    "emola": "Aguardando...",
+    "mpesa": "858778905 [ PAULO JOAQUIM COMODALI ]",
+    "emola": "875376446 [ LUISA ZULANE MALUMBE ]",
     "paypal": "paulichocomedy@gmail.com"
   },
   "prizes": [

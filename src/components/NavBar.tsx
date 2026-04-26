@@ -14,7 +14,7 @@ export default function NavBar({ activeTab, onTabChange }: NavBarProps) {
   const tabs: { id: Tab; label: string; Icon: any }[] = [
     { id: 'home', label: t('home'), Icon: Home },
     { id: 'tasks', label: t('tasks'), Icon: ClipboardList },
-    { id: 'mines', label: 'Mines', Icon: Bomb },
+    { id: 'mines', label: t('mines'), Icon: Bomb },
     { id: 'vip', label: t('vip'), Icon: ShieldCheck },
     { id: 'team', label: t('team'), Icon: Users },
     { id: 'me', label: t('me'), Icon: User },

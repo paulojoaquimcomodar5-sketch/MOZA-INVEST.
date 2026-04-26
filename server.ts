@@ -13,11 +13,21 @@ async function startServer() {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
-    maxHttpBufferSize: 1e7, // 10MB to allow larger profile images
+    maxHttpBufferSize: 1e7,
+    pingTimeout: 60000,
+    pingInterval: 25000,
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
-    }
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    allowEIO3: true
+  });
+
+  io.engine.on("connection_error", (err) => {
+    if (err.code === 1) return; // Ignore "Session ID unknown" noisiness
+    console.error(`[SOCKET ENGINE ERROR] Code ${err.code}: ${err.message}`);
+    if (err.req) console.error(`[SOCKET ENGINE ERROR] Request URL: ${err.req.url}`);
   });
 
   const PORT = 3000;
@@ -45,6 +55,7 @@ async function startServer() {
     ] as any[],
     registeredUsers: [
       { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
+      { phone: '875376446', name: 'LUISA ZULANE MALUMBE', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'LUISA' },
       { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: '123', inviteCode: 'MOZA2026' }
     ] as any[],
     validInviteCode: "MOZA2026",
@@ -74,7 +85,12 @@ async function startServer() {
       { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
       { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
       { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
-    ]
+    ],
+    welcomeSettings: {
+      active: true,
+      title: "Olá, {name}!",
+      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    }
   };
 
   // Load state from file
@@ -83,14 +99,35 @@ async function startServer() {
       const savedState = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
       state = { ...state, ...savedState };
       
-      // Migration: Ensure level and tickets exist for old users
-      state.registeredUsers.forEach(u => {
-        if (u.level === undefined) u.level = 'Membro Grátis';
-        if (u.tickets === undefined) u.tickets = 0;
-        if (u.profileImage === undefined) u.profileImage = '';
-      });
+    // Migration: Ensure all state properties exist and are of correct type
+    state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
+    state.pendingApprovals = Array.isArray(state.pendingApprovals) ? state.pendingApprovals : [];
+    state.pendingWithdrawals = Array.isArray(state.pendingWithdrawals) ? state.pendingWithdrawals : [];
+    state.messages = Array.isArray(state.messages) ? state.messages : [];
+    state.banners = Array.isArray(state.banners) ? state.banners : [];
+    state.auditLogs = Array.isArray(state.auditLogs) ? state.auditLogs : [];
+    state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
 
-      if (state.appStatus === undefined) state.appStatus = 'OPEN';
+    if (state.welcomeSettings === undefined) {
+      state.welcomeSettings = {
+        active: true,
+        title: "Olá, {name}!",
+        message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+      };
+    }
+
+    state.registeredUsers.forEach(u => {
+      if (u.level === undefined) u.level = 'Membro Grátis';
+      if (u.tickets === undefined) u.tickets = 0;
+      if (u.profileImage === undefined) u.profileImage = '';
+      
+      // Ensure each user has a unique invite code (if they have the generic one)
+      if (!u.inviteCode || u.inviteCode === 'MOZA2026') {
+        u.inviteCode = 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      }
+    });
+
+    if (state.appStatus === undefined) state.appStatus = 'OPEN';
       if (state.closureMessage === undefined) state.closureMessage = 'A plataforma está temporariamente em manutenção. Voltaremos em breve!';
       if (state.paymentMethods === undefined) {
         state.paymentMethods = {
@@ -249,7 +286,13 @@ async function startServer() {
 
     // Session Validation (Full Stack Sync)
     socket.on("validate_session", ({ phone }) => {
-      const user = state.registeredUsers.find(u => u.phone === phone);
+      const normalize = (p: string) => {
+        let digits = (p || '').replace(/\D/g, '');
+        if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+        return digits;
+      };
+      const targetPhone = normalize(phone);
+      const user = state.registeredUsers.find(u => normalize(u.phone || '') === targetPhone);
       if (user) {
         const { password: _, ...safeUser } = user;
         socket.emit("user_data_updated", safeUser);
@@ -262,22 +305,29 @@ async function startServer() {
       try {
         console.log(`[AUTH] Login attempt for: "${phone}"`);
         
-        // Flexible Phone Matching (ignore spaces and dashes)
-        const normalize = (p: string) => p.replace(/[\s\-\+\(\)]/g, '');
+        // Simple Normalization: Keep only digits and strip common MZ prefix
+        const normalize = (p: string) => {
+          let digits = (p || '').replace(/\D/g, '');
+          if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+          return digits;
+        };
         const targetPhone = normalize(phone);
         
         const user = state.registeredUsers.find(u => {
           const up = normalize(u.phone || '');
-          return up === targetPhone || u.phone === phone;
+          return up === targetPhone;
         });
 
-        if (user && user.password === password) {
+        const providedPassword = (password || '').toString().trim();
+        const userPassword = (user?.password || '').toString().trim();
+
+        if (user && userPassword === providedPassword) {
           console.log(`[AUTH] Login success: ${phone}`);
           (socket as any).userPhone = user.phone;
           const { password: _, ...safeUser } = user;
           socket.emit("login_response", { success: true, user: safeUser });
         } else if (user) {
-          console.warn(`[AUTH] Login failed: Wrong password for ${phone}`);
+          console.warn(`[AUTH] Login failed: Wrong password for ${phone}. Expected "${userPassword}", got "${providedPassword}"`);
           socket.emit("login_response", { success: false, message: "Palavra-passe incorrecta." });
         } else {
           // Special fallback for admin if for some reason the DB is cleared/corrupted
@@ -297,23 +347,33 @@ async function startServer() {
     });
 
     socket.on("register_user", (userData) => {
-      if (userData.inviteCode !== state.validInviteCode) {
+      const isValidSystemCode = userData.inviteCode === state.validInviteCode;
+      const uplineUser = state.registeredUsers.find(u => u.inviteCode === userData.inviteCode);
+      
+      if (!isValidSystemCode && !uplineUser) {
         socket.emit("registration_response", { success: false, message: "Código de Convite inválido!" });
         return;
       }
 
       if (!state.registeredUsers.find(u => u.phone === userData.phone)) {
+        const generatedCode = 'MZ-' + Math.random().toString(36).substr(2, 6).toUpperCase();
         const newUser = { 
           phone: userData.phone, 
           name: userData.name || 'Investidor Gold', 
           password: userData.password,
-          inviteCode: userData.inviteCode || 'MOZA2026',
+          inviteCode: generatedCode,
           balance: 0, 
           fundBalance: 0, 
           totalProfit: 0,
-          level: 'Membro Grátis'
+          level: 'Membro Grátis',
+          upline: uplineUser ? uplineUser.phone : 'SISTEMA'
         };
         state.registeredUsers.push(newUser);
+        
+        if (uplineUser) {
+          uplineUser.invitedCount = (uplineUser.invitedCount || 0) + 1;
+        }
+        
         saveState();
         
         // Attach phone to socket for targeted emits
@@ -440,11 +500,22 @@ async function startServer() {
     });
 
     socket.on("get_app_status", () => {
-      socket.emit("app_status_update", { status: state.appStatus, message: state.closureMessage });
+      socket.emit("app_status_update", { 
+        status: state.appStatus, 
+        message: state.closureMessage,
+        welcomeSettings: state.welcomeSettings 
+      });
       socket.emit("prizes_update", state.prizes);
       socket.emit("payment_methods_update", state.paymentMethods);
       socket.emit("vip_plans_update", state.vipPlans);
       socket.emit("funds_update", state.funds);
+    });
+
+    socket.on("update_welcome_settings", (settings) => {
+      state.welcomeSettings = { ...state.welcomeSettings, ...settings };
+      saveState();
+      io.emit("welcome_settings_update", state.welcomeSettings);
+      addLog("UPDATE_WELCOME", `Welcome message updated (Active: ${state.welcomeSettings.active})`);
     });
 
     socket.on("update_vip_plans", (plans) => {
@@ -757,7 +828,11 @@ async function startServer() {
     socket.on("task_completed", (data) => {
       console.log(`[TASK] User ${data.user} completed task ${data.taskId} for ${data.reward} MT`);
       
-      const normalize = (p: string) => p.replace(/[\s\-\+\(\)]/g, '');
+      const normalize = (p: string) => {
+        let digits = (p || '').replace(/\D/g, '');
+        if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+        return digits;
+      };
       const targetPhone = normalize(data.user || '');
 
       const user = state.registeredUsers.find(u => {
@@ -788,7 +863,11 @@ async function startServer() {
     });
 
     socket.on("claim_daily_challenge", ({ phone }) => {
-      const normalize = (p: string) => p.replace(/[\s\-\+\(\)]/g, '');
+      const normalize = (p: string) => {
+        let digits = (p || '').replace(/\D/g, '');
+        if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+        return digits;
+      };
       const targetPhone = normalize(phone || '');
       
       const user = state.registeredUsers.find(u => {

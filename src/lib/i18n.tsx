@@ -1,211 +1,342 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type Language = 'pt' | 'en' | 'ny' | 'zu' | 'tsa';
+export type Language = 'pt' | 'en' | 'ts' | 'nyu' | 'ny' | 'vmw';
 
-interface Translations {
-  [key: string]: {
-    [key in Language]: string;
-  };
-}
-
-export const translations: Translations = {
-  // Navigation
-  home: {
-    pt: 'Início',
-    en: 'Home',
-    ny: 'Kunyumba',
-    zu: 'Ikhaya',
-    tsa: 'Kaya'
+export const translations: Record<Language, Record<string, string>> = {
+  pt: {
+    home: 'Início',
+    tasks: 'Tarefas',
+    vip: 'VIP',
+    team: 'Equipe',
+    me: 'Perfil',
+    available_balance: 'Saldo Disponível',
+    vip_class: 'Classe VIP',
+    recharge: 'Recarga',
+    withdraw: 'Saque',
+    loan: 'Crédito',
+    capital_plans: 'Planos de Capital',
+    login: 'Entrar na Conta',
+    register: 'Registe-se',
+    phone_number: 'Telemóvel',
+    password: 'Palavra-passe',
+    invite_code: 'Código de Convite',
+    confirm: 'Confirmar',
+    cancel: 'Cancelar',
+    logout: 'Sair',
+    settings: 'Definições',
+    language: 'Idioma',
+    support: 'Suporte',
+    exclusive_support: 'Suporte Exclusivo',
+    professional_aid: 'Apoio Profissional 24/7',
+    waiting: 'Aguardando...',
+    welcome_msg: 'Bem-vindo à MOZA INV GOLD! A sua conta foi ativada com sucesso.',
+    invite_required: 'O Código de Convite é obrigatório!',
+    auth_error_phone: 'Por favor, insira o seu número de telemóvel',
+    auth_error_pass: 'A palavra-passe deve ter pelo menos 4 caracteres',
+    server_delay: 'O servidor está a demorar a responder. Por favor, verifique a sua ligação à internet.',
+    daily_bonus_success: '🎁 PARABÉNS! Você resgatou o seu bónus diário de {reward} MT.',
+    vip_already_active: 'Você já possui este plano ativo.',
+    activation_sent: 'Pedido de Ativação do {plan} enviado! O ADM MOZA analisará o comprovativo.',
+    payment_received: 'Recebido! O ADM MOZA analisará o comprovativo em instantes.',
+    select_proof: 'Por favor, selecione a foto do recibo.',
+    valid_amount: 'Insira um valor válido',
+    win_msg: 'VITÓRIA! Ganhou {amount} MT. O prémio foi enviado para aprovação do Administrador.',
+    restricted_access: 'Acesso Restrito',
+    maintenance_msg_default: 'A plataforma está em manutenção programada para melhorias na segurança.',
+    system_status: 'Status do Sistema',
+    maintenance_active: '🔴 MANUTENÇÃO TEMPORÁRIA',
+    suspension_active: '🚫 SUSPENSÃO PERMANENTE',
+    i_am_admin: 'Sou Administrador',
+    master_code_placeholder: 'Código de Acesso Master',
+    remember_me: 'Lembrar-me',
+    forgot_password: 'Esqueceu a senha?',
+    admin_portal: 'Portal de Comando',
+    task_center: 'Centro de Tarefas',
+    youtube_mission: 'Missão MOZA YouTube',
+    youtube_bonus_desc: 'Ganhe 50 MT de Bónus',
+    youtube_mission_instr: 'Subscreva o canal oficial e envie o Screenshot da prova para receber o bónus após aprovação do Admin.',
+    hide_tutorial: 'OCULTAR TUTORIAL',
+    show_tutorial: 'VER TUTORIAL: COMO TIRAR E ENVIAR O SCREENSHOT',
+    open_channel_sub: '1. ABRIR CANAL E SUBSCREVER',
+    send_screenshot: '2. ENVIAR SCREENSHOT (PROVA)',
+    proof_sent: 'Prova enviada! Aguarde a verificação do Administrador.',
+    panel_vip: 'Painel {level}',
+    daily_target: 'Meta de Hoje',
+    accumulated: 'Acumulado',
+    activity_distribution: 'Distribuição de Actividades',
+    daily_challenge_completed: 'Desafio Diário Concluído!',
+    bonus_ready: 'O seu bónus de 25 MT está pronto',
+    redeem_now: 'Resgatar Agora',
+    redeemed: 'Resgatado',
+    watching_in_progress: 'Visualização em Curso',
+    wait_for_completion: 'Aguarde a Conclusão',
+    close_now: 'Fechar Agora',
+    reward: 'Recompensa',
+    completed: 'CONCLUÍDA',
+    watch_btn: 'ASSISTIR',
+    my_team: 'A Minha Equipa',
+    total_members: 'Total de Membros',
+    total_commission: 'Comissão Total',
+    invite_friends: 'Convidar Amigos',
+    invite_desc: 'Ganhe até 15% de comissão Vitalícia sobre os investimentos da sua rede directas e indirectas.',
+    invite_link_copied: 'Link de convite copiado com sucesso!',
+    security: 'Segurança',
+    daily_challenge: 'DESAFIO DIÁRIO',
+    daily_challenge_desc: 'Conclua as tarefas e ganhe +25 MT',
+    claim: 'Resgatar',
+    tutorial: 'Tutorial',
+    fund: 'Fundo',
+    company: 'Empresa',
+    withdraw_view_title: 'Levantamento',
+    withdrawable_balance: 'Saldo Levantável',
+    amount_to_withdraw: 'Montante a Levantar',
+    payment_channel: 'Canal de Pagamento',
+    request_withdrawal_btn: 'SOLICITAR SAQUE',
+    withdrawal_processing_desc: 'Os pedidos de levantamento são processados em até 24 horas. Taxa de serviço de 5% aplicada.',
+    confirm_withdrawal: 'Confirmar Levantamento',
+    value: 'Valor',
+    channel_label: 'Canal',
+    fee: 'Taxa (5%)',
+    continue_btn: 'CONTINUAR',
+    cancel_btn: 'CANCELAR',
+    withdrawal_pending_msg: 'Pedido enviado para aprovação do Administrador.',
+    invalid_amount: 'Por favor, insira um montante válido (Mínimo 100 MT)',
+    insufficient_balance: 'Saldo insuficiente para este levantamento.',
+    fund_view_title: 'Fundo de Capital',
+    fund_balance: 'Saldo no Fundo',
+    total_profit: 'Lucro Total',
+    history: 'HISTÓRICO',
+    available_funds: 'Fundos Disponíveis',
+    risk: 'Risco',
+    per_day: '/ Dia',
+    subscription_title: 'Subscrição',
+    estimated_yield: 'Rendimento Estimado',
+    amount_to_allocate: 'Valor a Alocar (MZN)',
+    activate_investment_btn: 'ATIVAR INVESTIMENTO',
+    fund_terms: 'Ao ativar, você concorda com os termos da MOZA INV.',
+    mines: 'Minas',
+    select_language: 'Selecionar Idioma'
   },
-  tasks: {
-    pt: 'Tarefas',
-    en: 'Tasks',
-    ny: 'Nchito',
-    zu: 'Imisebenzi',
-    tsa: 'Mintirho'
+  en: {
+    home: 'Home',
+    tasks: 'Tasks',
+    vip: 'VIP',
+    team: 'Team',
+    me: 'Profile',
+    available_balance: 'Available Balance',
+    vip_class: 'VIP Class',
+    recharge: 'Recharge',
+    withdraw: 'Withdraw',
+    loan: 'Loan',
+    capital_plans: 'Capital Plans',
+    login: 'Login',
+    register: 'Register',
+    phone_number: 'Phone Number',
+    password: 'Password',
+    invite_code: 'Invite Code',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    logout: 'Logout',
+    settings: 'Settings',
+    language: 'Language',
+    support: 'Support',
+    exclusive_support: 'Exclusive Support',
+    professional_aid: '24/7 Professional Aid',
+    waiting: 'Waiting...',
+    welcome_msg: 'Welcome to MOZA INV GOLD! Your account has been successfully activated.',
+    invite_required: 'Invite Code is required!',
+    auth_error_phone: 'Please enter your phone number',
+    auth_error_pass: 'Password must have at least 4 characters',
+    server_delay: 'Server is taking long to respond. Please check your connection.',
+    daily_bonus_success: '🎁 CONGRATULATIONS! You redeemed your daily bonus of {reward} MT.',
+    vip_already_active: 'You already have this plan active.',
+    activation_sent: 'Activation request for {plan} sent! Admin will review the proof.',
+    payment_received: 'Received! Admin will review the proof shortly.',
+    select_proof: 'Please select a receipt photo.',
+    valid_amount: 'Enter a valid amount',
+    win_msg: 'VICTORY! You won {amount} MT. The prize was sent for Admin approval.',
+    restricted_access: 'Restricted Access',
+    maintenance_msg_default: 'Platform is under scheduled maintenance for security improvements.',
+    system_status: 'System Status',
+    maintenance_active: '🔴 TEMPORARY MAINTENANCE',
+    suspension_active: '🚫 PERMANENT SUSPENSION',
+    i_am_admin: 'I am Admin',
+    master_code_placeholder: 'Master Access Code',
+    remember_me: 'Remember me',
+    forgot_password: 'Forgot password?',
+    admin_portal: 'Control Portal',
+    task_center: 'Task Center',
+    youtube_mission: 'MOZA YouTube Mission',
+    youtube_bonus_desc: 'Earn 50 MT Bonus',
+    youtube_mission_instr: 'Subscribe to the official channel and send Screenshot proof.',
+    hide_tutorial: 'HIDE TUTORIAL',
+    show_tutorial: 'SHOW TUTORIAL',
+    open_channel_sub: '1. OPEN CHANNEL & SUBSCRIBE',
+    send_screenshot: '2. SEND SCREENSHOT (PROOF)',
+    proof_sent: 'Proof sent! Awaiting Admin verification.',
+    panel_vip: '{level} Panel',
+    daily_target: 'Today\'s Target',
+    accumulated: 'Accumulated',
+    activity_distribution: 'Activity Distribution',
+    daily_challenge_completed: 'Daily Challenge Completed!',
+    bonus_ready: 'Your 25 MT bonus is ready',
+    redeem_now: 'Redeem Now',
+    redeemed: 'Redeemed',
+    watching_in_progress: 'Watching in Progress',
+    wait_for_completion: 'Wait for Completion',
+    close_now: 'Close Now',
+    reward: 'Reward',
+    completed: 'COMPLETED',
+    watch_btn: 'WATCH',
+    my_team: 'My Team',
+    total_members: 'Total Members',
+    total_commission: 'Total Commission',
+    invite_friends: 'Invite Friends',
+    invite_desc: 'Earn up to 15% Lifetime commission on your network\'s investments.',
+    invite_link_copied: 'Invite link copied successfully!',
+    security: 'Security',
+    daily_challenge: 'DAILY CHALLENGE',
+    daily_challenge_desc: 'Complete tasks and earn +25 MT',
+    claim: 'Claim',
+    tutorial: 'Tutorial',
+    fund: 'Fund',
+    company: 'Company',
+    withdraw_view_title: 'Withdrawal',
+    withdrawable_balance: 'Withdrawable Balance',
+    amount_to_withdraw: 'Amount to Withdraw',
+    payment_channel: 'Payment Channel',
+    request_withdrawal_btn: 'REQUEST WITHDRAWAL',
+    withdrawal_processing_desc: 'Requests are processed within 24 hours. 5% service fee applies.',
+    confirm_withdrawal: 'Confirm Withdrawal',
+    value: 'Value',
+    channel_label: 'Channel',
+    fee: 'Fee (5%)',
+    continue_btn: 'CONTINUE',
+    cancel_btn: 'CANCEL',
+    withdrawal_pending_msg: 'Request sent for Admin approval.',
+    invalid_amount: 'Please enter a valid amount (Min 100 MT)',
+    insufficient_balance: 'Insufficient balance for this withdrawal.',
+    fund_view_title: 'Capital Fund',
+    fund_balance: 'Fund Balance',
+    total_profit: 'Total Profit',
+    history: 'HISTORY',
+    available_funds: 'Available Funds',
+    risk: 'Risk',
+    per_day: '/ Day',
+    subscription_title: 'Subscription',
+    estimated_yield: 'Estimated Yield',
+    amount_to_allocate: 'Amount to Allocate (MZN)',
+    activate_investment_btn: 'ACTIVATE INVESTMENT',
+    fund_terms: 'By activating, you agree to MOZA INV terms.',
+    mines: 'Mines',
+    select_language: 'Select Language'
   },
-  vip: {
-    pt: 'VIP',
-    en: 'VIP',
-    ny: 'VIP',
-    zu: 'VIP',
-    tsa: 'VIP'
+  ts: {
+    home: 'Masungulo',
+    tasks: 'Mintirho',
+    vip: 'VIP',
+    team: 'Ntlawa',
+    me: 'Munthu',
+    available_balance: 'Mali leyi nga kona',
+    vip_class: 'Xiyimo xa VIP',
+    recharge: 'Ku chela mali',
+    withdraw: 'Ku humesa mali',
+    login: 'Nghena',
+    register: 'Titsalise',
+    phone_number: 'Foni',
+    password: 'Xihundla',
+    logout: 'Huma',
+    settings: 'Malulamiselo',
+    language: 'Ririmi',
+    select_language: 'Hlawula Ririmi'
   },
-  team: {
-    pt: 'Equipe',
-    en: 'Team',
-    ny: 'Gulu',
-    zu: 'Iqembu',
-    tsa: 'Ntlawa'
+  nyu: {
+    home: 'Mathatisiro',
+    tasks: 'Basa',
+    vip: 'VIP',
+    team: 'Gulu',
+    me: 'Munthu',
+    available_balance: 'Kobiri iripo',
+    vip_class: 'VIP',
+    recharge: 'Kuthira',
+    withdraw: 'Kubula',
+    login: 'Ngena',
+    register: 'Nembetsani',
+    phone_number: 'Foni',
+    password: 'Bulu',
+    logout: 'Bula',
+    settings: 'Malulamiselo',
+    language: 'Chirewo',
+    select_language: 'Sankhulani Chirewo'
   },
-  me: {
-    pt: 'Perfil',
-    en: 'Profile',
-    ny: 'Mbiri',
-    zu: 'Iphrofayela',
-    tsa: 'Phrofayili'
+  ny: {
+    home: 'Poyambira',
+    tasks: 'Nchito',
+    vip: 'VIP',
+    team: 'Gulu',
+    me: 'Mbiri',
+    available_balance: 'Ndalama zomwe ziripo',
+    vip_class: 'VIP',
+    recharge: 'Kuonjezera',
+    withdraw: 'Kutulutsa',
+    login: 'Lowani',
+    register: 'Lembetsani',
+    phone_number: 'Lamva',
+    password: 'Mfungulo',
+    logout: 'Tulukani',
+    settings: 'Zokonda',
+    language: 'Chilankhulo',
+    select_language: 'Sankhani Chilankhulo'
   },
-  // Home View
-  available_balance: {
-    pt: 'Saldo Disponível',
-    en: 'Available Balance',
-    ny: 'Ndalama Zomwe Zilipo',
-    zu: 'Ibhalansi Etholakalayo',
-    tsa: 'Ntsengo lowu kumekaka'
-  },
-  vip_class: {
-    pt: 'Classe VIP',
-    en: 'VIP Class',
-    ny: 'Gulu la VIP',
-    zu: 'Isigaba se-VIP',
-    tsa: 'Xiyimo xa VIP'
-  },
-  recharge: {
-    pt: 'Recarga',
-    en: 'Recharge',
-    ny: 'Kuonjezera',
-    zu: 'Faka imali',
-    tsa: 'Ku nghenisa mali'
-  },
-  withdraw: {
-    pt: 'Saque',
-    en: 'Withdraw',
-    ny: 'Kuchotsa',
-    zu: 'Khipha imali',
-    tsa: 'Ku humesa mali'
-  },
-  loan: {
-    pt: 'Crédito',
-    en: 'Loan',
-    ny: 'Ngongole',
-    zu: 'Imali mboleko',
-    tsa: 'Xikweneti'
-  },
-  capital_plans: {
-    pt: 'Planos de Capital',
-    en: 'Capital Plans',
-    ny: 'Mapulani a Ndalama',
-    zu: 'Amapulani eMali',
-    tsa: 'Mapulani ya mali'
-  },
-  // Auth
-  login: {
-    pt: 'Entrar na Conta',
-    en: 'Login',
-    ny: 'Lowani',
-    zu: 'Ngena',
-    tsa: 'Nghena'
-  },
-  register: {
-    pt: 'Registe-se',
-    en: 'Register',
-    ny: 'Lembetsani',
-    zu: 'Bhalisa',
-    tsa: 'Titsalise'
-  },
-  phone_number: {
-    pt: 'Telemóvel',
-    en: 'Phone Number',
-    ny: 'Nambala ya Foni',
-    zu: 'Inombolo yocingo',
-    tsa: 'Nomboro ya foni'
-  },
-  password: {
-    pt: 'Palavra-passe',
-    en: 'Password',
-    ny: 'Chinsinsi',
-    zu: 'Iphasiwedi',
-    tsa: 'Rito-vuxaka'
-  },
-  invite_code: {
-    pt: 'Código de Convite',
-    en: 'Invite Code',
-    ny: 'Khodi Yoitanira',
-    zu: 'Ikhodi yesimemo',
-    tsa: 'Khodi ya xirhambo'
-  },
-  // Common Actions
-  confirm: {
-    pt: 'Confirmar',
-    en: 'Confirm',
-    ny: 'Tsimikizani',
-    zu: 'Qinisekisa',
-    tsa: 'Tiyisisa'
-  },
-  cancel: {
-    pt: 'Cancelar',
-    en: 'Cancel',
-    ny: 'Kulepheretsa',
-    zu: 'Khansela',
-    tsa: 'Tshika'
-  },
-  logout: {
-    pt: 'Sair',
-    en: 'Logout',
-    ny: 'Tulukani',
-    zu: 'Phuma',
-    tsa: 'Huma'
-  },
-  // Settings/Profile
-  settings: {
-    pt: 'Definições',
-    en: 'Settings',
-    ny: 'Zokonda',
-    zu: 'Izilungiselelo',
-    tsa: 'Swiyimiso'
-  },
-  language: {
-    pt: 'Idioma',
-    en: 'Language',
-    ny: 'Chilankhulo',
-    zu: 'Ulimi',
-    tsa: 'Ririmi'
-  },
-  support: {
-    pt: 'Suporte',
-    en: 'Support',
-    ny: 'Chithandizo',
-    zu: 'Ukwesekwa',
-    tsa: 'Nseketelo'
-  },
-  exclusive_support: {
-    pt: 'Suporte Exclusivo',
-    en: 'Exclusive Support',
-    ny: 'Chithandizo Chachilendo',
-    zu: 'Ukwesekwa okukhethekile',
-    tsa: 'Nseketelo lowu hlawulekeke'
-  },
-  professional_aid: {
-    pt: 'Apoio Profissional 24/7',
-    en: '24/7 Professional Aid',
-    ny: 'Thandizo Lakatswiri 24/7',
-    zu: 'Usizo lwezingcweti 24/7',
-    tsa: 'Mpfuno wa xiphurofexinali 24/7'
+  vmw: {
+    home: 'Opacerya',
+    tasks: 'Muteko',
+    vip: 'VIP',
+    team: 'Nikhuuru',
+    me: 'Muthu',
+    available_balance: 'Musurukhu uriwo',
+    vip_class: 'VIP',
+    recharge: 'Othela',
+    withdraw: 'Okumiha',
+    login: 'Ovolowa',
+    register: 'Olembeha',
+    phone_number: 'Foni',
+    password: 'Inuma',
+    logout: 'Okuma',
+    settings: 'Opaka',
+    language: 'Nloko',
+    select_language: 'Othanla Nloko'
   }
 };
 
 type ContextType = {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 const LanguageContext = createContext<ContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem('app_language');
-    return (saved as Language) || 'pt';
+    return (localStorage.getItem('moza_lang') as Language) || 'pt';
   });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('app_language', lang);
+    localStorage.setItem('moza_lang', lang);
   };
 
-  const t = (key: string): string => {
-    if (!translations[key]) return key;
-    return translations[key][language] || translations[key]['en'] || key;
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    const langTranslations = translations[language] || translations['pt'];
+    let text = langTranslations[key] || translations['pt'][key] || key;
+    
+    if (params) {
+      Object.keys(params).forEach(p => {
+        text = text.replace(`{${p}}`, String(params[p]));
+      });
+    }
+    return text;
   };
 
   return (

@@ -1,8 +1,8 @@
-import { User, Wallet, History, Shield, Settings, ChevronRight, LogOut, Building2, Camera, X, Check, Upload } from 'lucide-react';
+import { User, Wallet, History, Shield, Settings, ChevronRight, LogOut, Building2, Camera, X, Check, Upload, Languages } from 'lucide-react';
 import { Tab, User as UserType } from '../types';
 import React, { useState, useRef, useEffect } from 'react';
 import socket from '../lib/socket';
-import { useTranslation } from '../lib/i18n';
+import { useTranslation, Language } from '../lib/i18n';
 
 interface ProfileViewProps {
   user: UserType | null;
@@ -12,12 +12,21 @@ interface ProfileViewProps {
 }
 
 export default function ProfileView({ user, onLogout, onWithdraw, onNavigate }: ProfileViewProps) {
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newPhotoUrl, setNewPhotoUrl] = useState(user?.profileImage || '');
   const [newName, setNewName] = useState(user?.name || '');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const languages: { code: Language, label: string }[] = [
+    { code: 'pt', label: 'Português' },
+    { code: 'en', label: 'English' },
+    { code: 'ts', label: 'Changana' },
+    { code: 'nyu', label: 'Nhungue' },
+    { code: 'ny', label: 'Chichewa' },
+    { code: 'vmw', label: 'Macua' }
+  ];
 
   // Sync state with user data when not editing
   useEffect(() => {
@@ -199,13 +208,38 @@ export default function ProfileView({ user, onLogout, onWithdraw, onNavigate }: 
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-8">
-        <div className="bg-surface border border-border p-5 rounded-xl">
+        <div className="bg-surface border border-border p-5 rounded-xl text-center">
           <small className="text-text-secondary uppercase text-[8px] tracking-[2px] block mb-1 font-bold">Total Lucro</small>
           <div className="text-lg font-serif text-white">450.00 MT</div>
         </div>
-        <div className="bg-surface border border-border p-5 rounded-xl">
+        <div className="bg-surface border border-border p-5 rounded-xl text-center">
           <small className="text-text-secondary uppercase text-[8px] tracking-[2px] block mb-1 font-bold">Pontos Sorte</small>
           <div className="text-lg font-serif text-accent">{user?.tickets || 0} PTS</div>
+        </div>
+      </div>
+
+      {/* Language Selector */}
+      <div className="bg-surface border border-border rounded-xl p-6 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center text-accent">
+            <Languages size={16} />
+          </div>
+          <h4 className="text-white text-[10px] uppercase tracking-widest font-bold">{t('select_language')}</h4>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => setLanguage(lang.code)}
+              className={`py-2 px-1 rounded-lg text-[10px] font-bold transition-all border ${
+                language === lang.code 
+                  ? 'bg-accent text-bg border-accent' 
+                  : 'bg-bg text-text-secondary border-divider hover:border-accent/40'
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
         </div>
       </div>
 

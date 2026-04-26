@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 const socket = io({
-  transports: ['polling', 'websocket'], // Allow both, websocket as upgrade
+  transports: ['websocket', 'polling'], // Prefer websocket, fallback to polling
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,

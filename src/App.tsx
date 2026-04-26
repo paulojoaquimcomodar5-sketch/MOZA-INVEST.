@@ -11,6 +11,8 @@ import {
   LogOut,
   Smartphone,
   Lock,
+  Eye,
+  EyeOff,
   UserPlus,
   ShieldAlert,
   Zap,
@@ -46,6 +48,7 @@ import PrizeShowcase from './components/PrizeShowcase';
 import AdminDashboard from './components/AdminDashboard';
 import SuccessCelebration from './components/SuccessCelebration';
 import MinesGame from './components/MinesGame';
+import WelcomeModal from './components/WelcomeModal';
 import LoanView from './components/LoanView';
 import socket from './lib/socket';
 
@@ -59,6 +62,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [activatedPlanName, setActivatedPlanName] = useState('');
   const [activatingPlan, setActivatingPlan] = useState<VIPPlan | null>(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -66,7 +70,28 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
-  const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const [appStatus, setAppStatus] = useState({ 
+    status: 'OPEN', 
+    message: '',
+    welcomeSettings: {
+      active: true,
+      title: "Olá, {name}!",
+      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    }
+  });
   const [prizes, setPrizes] = useState<any[]>([]);
   const [funds, setFunds] = useState<any[]>([]);
   const [vipPlans, setVipPlans] = useState<any[]>([
@@ -77,9 +102,9 @@ export default function App() {
     { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
   ]);
   const [paymentMethods, setPaymentMethods] = useState({
-    mpesa: "Aguardando...",
-    emola: "Aguardando...",
-    paypal: "Aguardando..."
+    mpesa: t('waiting'),
+    emola: t('waiting'),
+    paypal: t('waiting')
   });
 
   const isUserAdmin = user?.phone === '+55 21 98124-5002';
@@ -99,6 +124,11 @@ export default function App() {
     const onConnectError = (error: any) => {
       console.error("[CLIENT] Socket connection error:", error);
       setIsSocketConnected(false);
+      // Give a bit more info if it's a known string error
+      const errorMsg = error?.message || String(error);
+      if (errorMsg === 'server error') {
+        console.warn("Server side error detected. Retrying...");
+      }
     };
 
     socket.on('connect', onConnect);
@@ -113,6 +143,10 @@ export default function App() {
 
     socket.on('app_status_update', (data) => {
       setAppStatus(data);
+    });
+
+    socket.on('welcome_settings_update', (settings) => {
+      setAppStatus(prev => ({ ...prev, welcomeSettings: settings }));
     });
 
     socket.on('prizes_update', (data) => {
@@ -133,7 +167,7 @@ export default function App() {
 
     socket.on('challenge_response', (res) => {
       if (res.success) {
-        alert(`🎁 PARABÉNS! Você resgatou o seu bónus diário de ${res.reward} MT.`);
+        alert(t('daily_bonus_success', { reward: res.reward }));
       } else {
         alert(res.message);
       }
@@ -147,6 +181,9 @@ export default function App() {
         setIsAuthenticated(true);
         localStorage.setItem('moza_user', JSON.stringify(res.user));
         setAuthError(null);
+        if (appStatus.welcomeSettings?.active) {
+          setShowWelcome(true);
+        }
       } else {
         setAuthError(res.message);
       }
@@ -156,7 +193,7 @@ export default function App() {
       console.log("[CLIENT] Received registration response:", res);
       setIsAuthLoading(false);
       if (res.success) {
-        alert("Bem-vindo à MOZA INV GOLD! A sua conta foi ativada com sucesso.");
+        alert(t('welcome_msg'));
         setIsRegisterMode(false);
         setAuthError(null);
       } else {
@@ -244,10 +281,13 @@ export default function App() {
     }
   }, [isSocketConnected]);
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleAuth = () => {
     setAuthError(null);
-    if (authForm.phone.length < 3) return setAuthError("Por favor, insira o seu número de telemóvel");
-    if (authForm.pass.length < 4) return setAuthError("A palavra-passe deve ter pelo menos 4 caracteres");
+    const sanitizedPhone = authForm.phone.replace(/\D/g, '');
+    if (sanitizedPhone.length < 3) return setAuthError(t('auth_error_phone'));
+    if (authForm.pass.length < 4) return setAuthError(t('auth_error_pass'));
     
     setIsAuthLoading(true);
 
@@ -259,7 +299,7 @@ export default function App() {
     // Safety timeout
     const timeout = setTimeout(() => {
       setIsAuthLoading(false);
-      setAuthError("O servidor está a demorar a responder. Por favor, verifique a sua ligação à internet.");
+      setAuthError(t('server_delay'));
     }, 15000);
 
     const onResponse = () => clearTimeout(timeout);
@@ -270,18 +310,18 @@ export default function App() {
       if (!authForm.invite) {
         setIsAuthLoading(false);
         clearTimeout(timeout);
-        return setAuthError("O Código de Convite é obrigatório!");
+        return setAuthError(t('invite_required'));
       }
 
       socket.emit('register_user', { 
-        phone: authForm.phone, 
+        phone: sanitizedPhone, 
         password: authForm.pass, 
         inviteCode: authForm.invite,
-        name: `Investidor ${authForm.phone.slice(-3)}`
+        name: `Investidor ${sanitizedPhone.slice(-3)}`
       });
     } else {
       socket.emit('login_request', { 
-        phone: authForm.phone, 
+        phone: sanitizedPhone, 
         password: authForm.pass 
       });
     }
@@ -289,7 +329,7 @@ export default function App() {
 
   const activateVIP = (plan: VIPPlan) => {
     if (!user) return;
-    if (user.level === plan.name) return alert("Você já possui este plano ativo.");
+    if (user.level === plan.name) return alert(t('vip_already_active'));
     
     setActivatingPlan(plan);
     setShowPayment(true);
@@ -323,7 +363,7 @@ export default function App() {
 
   const handlePaymentConfirm = (file: File | null, amount: number, type?: 'PAYMENT' | 'VIP_UPGRADE') => {
     if (file && user) {
-      if (amount <= 0) return alert("Insira um valor válido");
+      if (amount <= 0) return alert(t('valid_amount'));
       socket.emit('submit_for_approval', {
         type: type || 'PAYMENT',
         user: user.phone,
@@ -336,15 +376,15 @@ export default function App() {
       });
       
       if (type === 'VIP_UPGRADE') {
-        alert(`Pedido de Ativação do ${activatingPlan?.name} enviado! O ADM MOZA analisará o comprovativo.`);
+        alert(t('activation_sent', { plan: activatingPlan?.name || 'VIP' }));
       } else {
-        alert("Recebido! O ADM MOZA analisará o comprovativo em instantes.");
+        alert(t('payment_received'));
       }
       
       setShowPayment(false);
       setActivatingPlan(null);
     } else {
-      alert("Por favor, selecione a foto do recibo.");
+      alert(t('select_proof'));
     }
   };
 
@@ -378,7 +418,7 @@ export default function App() {
         user: user.phone,
         data: { amount: win }
       });
-      alert(`VITÓRIA! Ganhou ${win} MT. O prémio foi enviado para aprovação do Administrador.`);
+      alert(t('win_msg', { amount: win }));
     }
   };
 
@@ -431,14 +471,14 @@ export default function App() {
                <div className="bg-surface border border-border p-4 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
                      <TrendingUp size={14} className="text-emerald-400" />
-                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">Crescimento 24h</small>
+                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">{t('growth_24h')}</small>
                   </div>
                   <b className="text-white text-lg font-serif">+12.4%</b>
                </div>
                <div className="bg-surface border border-border p-4 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
                      <ShieldCheck size={14} className="text-blue-400" />
-                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">Segurança</small>
+                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">{t('security')}</small>
                   </div>
                   <b className="text-white text-lg font-serif">SSL 256</b>
                </div>
@@ -451,14 +491,14 @@ export default function App() {
                </div>
                <div className="relative z-10 flex justify-between items-center">
                   <div>
-                    <h4 className="text-bg font-black italic text-lg leading-tight">DESAFIO DIÁRIO</h4>
-                    <p className="text-bg/60 text-[9px] uppercase font-bold tracking-[2px] mt-1">Conclua as tarefas e ganhe +25 MT</p>
+                    <h4 className="text-bg font-black italic text-lg leading-tight">{t('daily_challenge')}</h4>
+                    <p className="text-bg/60 text-[9px] uppercase font-bold tracking-[2px] mt-1">{t('daily_challenge_desc')}</p>
                   </div>
                   <button 
                     onClick={() => socket.emit('claim_daily_challenge', { phone: user?.phone })}
                     className="bg-bg text-accent font-black px-6 py-3 rounded-xl text-[9px] uppercase tracking-widest hover:bg-white transition-colors active:scale-95"
                   >
-                    Resgatar
+                    {t('claim')}
                   </button>
                </div>
             </div>
@@ -469,10 +509,10 @@ export default function App() {
                 { id: 'withdraw', label: t('withdraw'), Icon: ArrowUpRight, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('withdraw') },
                 { id: 'loan', label: t('loan'), Icon: Landmark, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('loan') },
                 { id: 'team', label: t('team'), Icon: Users, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('team') },
-                { id: 'tutorial', label: 'Tutorial', Icon: HelpCircle, color: 'text-blue-400', bg: 'bg-blue-400/10', action: () => setActiveTab('tasks') },
-                { id: 'fund', label: 'Fundo', Icon: TrendingUp, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('fund') },
+                { id: 'tutorial', label: t('tutorial'), Icon: HelpCircle, color: 'text-blue-400', bg: 'bg-blue-400/10', action: () => setActiveTab('tasks') },
+                { id: 'fund', label: t('fund'), Icon: TrendingUp, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('fund') },
                 { id: 'task', label: t('tasks'), Icon: FileText, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('tasks') },
-                { id: 'company', label: 'Empresa', Icon: Building2, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('company') },
+                { id: 'company', label: t('company'), Icon: Building2, color: 'text-accent', bg: 'bg-accent-muted', action: () => setActiveTab('company') },
               ].map((item) => (
                 <button 
                   key={item.id} 
@@ -511,7 +551,7 @@ export default function App() {
       case 'vip':
         return <VIPView user={user} onActivate={activateVIP} vipPlans={vipPlans} />;
       case 'team':
-        return <TeamView />;
+        return <TeamView user={user} />;
       case 'withdraw':
         return <WithdrawView user={user} onBack={() => setActiveTab('home')} isMaintenance={maintenanceActive} vipPlans={vipPlans} />;
       case 'fund':
@@ -519,7 +559,7 @@ export default function App() {
       case 'company':
         return <CompanyView paymentMethods={paymentMethods} />;
       case 'support':
-        return <SupportView onNavigate={setActiveTab} />;
+        return <SupportView onNavigate={setActiveTab} paymentMethods={paymentMethods} />;
       case 'chat':
         return <CommunityChatView user={user} onBack={() => setActiveTab('support')} />;
       case 'mines':
@@ -548,14 +588,14 @@ export default function App() {
          <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mb-6 border border-accent/20 animate-pulse">
             <Lock className="text-accent" size={40} />
          </div>
-         <h1 className="text-2xl font-serif text-white mb-2 italic">Acesso Restrito</h1>
+         <h1 className="text-2xl font-serif text-white mb-2 italic">{t('restricted_access')}</h1>
          <p className="text-text-secondary text-sm max-w-xs mb-8 leading-relaxed">
-           {appStatus.message || "A plataforma está em manutenção programada para melhorias na segurança."}
+           {appStatus.message || t('maintenance_msg_default')}
          </p>
          <div className="p-4 bg-surface rounded-xl border border-border w-full max-w-sm mb-12">
-            <p className="text-[10px] text-accent uppercase tracking-widest font-bold mb-1">Status do Sistema</p>
+            <p className="text-[10px] text-accent uppercase tracking-widest font-bold mb-1">{t('system_status')}</p>
             <p className="text-white font-medium text-xs">
-              {appStatus.status === 'MAINTENANCE' ? '🔴 MANUTENÇÃO TEMPORÁRIA' : '🚫 SUSPENSÃO PERMANENTE'}
+              {appStatus.status === 'MAINTENANCE' ? t('maintenance_active') : t('suspension_active')}
             </p>
          </div>
          
@@ -564,7 +604,7 @@ export default function App() {
               onClick={() => setIsRegisterMode(!isRegisterMode)}
               className="text-[10px] uppercase font-black tracking-widest text-white/20 hover:text-accent transition-colors"
             >
-              Sou Administrador
+              {t('i_am_admin')}
             </button>
          </div>
 
@@ -586,6 +626,7 @@ export default function App() {
                       setIsAdminView(true);
                       setIsAuthenticated(true);
                       setUser({ phone: '+55 21 98124-5002', name: 'ADMIN', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', tickets: 0, inviteCode: 'ADMIN' });
+                      setShowWelcome(true);
                     }
                   }}
                />
@@ -598,12 +639,19 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center p-6 font-sans">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-surface p-10 rounded-3xl w-full max-w-sm border border-border text-center shadow-2xl relative overflow-hidden"
-        >
+      <div className="flex flex-col min-h-screen bg-bg overflow-hidden relative font-sans">
+        {/* Connection Status Banner */}
+        {!isOnline && (
+          <div className="w-full bg-red-600 text-white text-[9px] font-black uppercase tracking-[2px] py-2 text-center animate-pulse z-[100] fixed top-0 left-0">
+             Sem conexão à internet. Verifique os seus dados.
+          </div>
+        )}
+        <div className={`flex-1 flex items-center justify-center p-6 ${!isOnline ? 'pt-12' : ''}`}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-surface p-10 rounded-3xl w-full max-w-sm border border-border text-center shadow-2xl relative overflow-hidden"
+          >
           {/* Accent glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
           
@@ -631,15 +679,30 @@ export default function App() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                 <input 
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   placeholder={t('password')}
-                  className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                  className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
                   value={authForm.pass}
                   onChange={(e) => {
                     setAuthForm({ ...authForm, pass: e.target.value });
                     if(authError) setAuthError(null);
                   }}
                 />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-accent transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between px-1">
+                 <label className="flex items-center gap-2 cursor-pointer group">
+                    <input type="checkbox" defaultChecked className="accent-accent scale-90" />
+                    <span className="text-[10px] text-text-secondary group-hover:text-text transition-colors uppercase tracking-widest font-bold">{t('remember_me')}</span>
+                 </label>
+                 <button className="text-[10px] text-accent font-bold uppercase tracking-widest hover:underline">{t('forgot_password')}</button>
               </div>
 
               {isRegisterMode && (
@@ -674,8 +737,8 @@ export default function App() {
             
             <button 
               onClick={handleAuth}
-              disabled={isAuthLoading}
-              className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${isAuthLoading ? 'opacity-50 cursor-wait' : ''}`}
+              disabled={isAuthLoading || !isOnline}
+              className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${(isAuthLoading || !isOnline) ? 'opacity-50 cursor-wait' : ''}`}
             >
               {isAuthLoading ? (
                 <>
@@ -683,7 +746,9 @@ export default function App() {
                   <span>A PROCESSAR...</span>
                 </>
               ) : (
-                isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase()
+                !isOnline 
+                  ? 'INTERNET NECESSÁRIA' 
+                  : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
               )}
             </button>
             
@@ -710,6 +775,7 @@ export default function App() {
           </div>
         </motion.div>
       </div>
+    </div>
     );
   }
 
@@ -798,6 +864,14 @@ export default function App() {
         isVisible={showSuccess} 
         onClose={() => setShowSuccess(false)} 
         planName={activatedPlanName} 
+      />
+
+      {/* Welcome Modal */}
+      <WelcomeModal 
+        isVisible={showWelcome}
+        onClose={() => setShowWelcome(false)}
+        user={user}
+        settings={appStatus.welcomeSettings}
       />
     </div>
   );

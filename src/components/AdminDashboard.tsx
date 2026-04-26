@@ -135,7 +135,15 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({ balance: 0, level: '', tickets: 0, isPremium: false });
-  const [appStatus, setAppStatus] = useState({ status: 'OPEN', message: '' });
+  const [appStatus, setAppStatus] = useState({ 
+    status: 'OPEN', 
+    message: '',
+    welcomeSettings: {
+      active: true,
+      title: "Olá, {name}!",
+      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    }
+  });
   const [paymentMethods, setPaymentMethods] = useState({ mpesa: '', emola: '', paypal: '', bank: '' });
   const [userMsg, setUserMsg] = useState({ phone: '', content: '', type: 'ALERT' as 'ALERT' | 'GIFT' | 'INFO' });
 
@@ -157,6 +165,9 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     socket.on('vip_plans_update', (list: any[]) => setVipPlans(list));
     socket.on('payment_methods_update', (data: any) => setPaymentMethods(data));
     socket.on('app_status_update', (data: any) => setAppStatus(data));
+    socket.on('welcome_settings_update', (settings: any) => {
+      setAppStatus(prev => ({ ...prev, welcomeSettings: settings }));
+    });
     socket.on('tasks_list', (list: TaskItem[]) => setTasks(list));
     socket.on('audit_logs_list', (list: AuditLog[]) => setAuditLogs(list));
     socket.on('user_data_updated', (updatedUser: User) => {
@@ -527,6 +538,62 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                </div>
             </div>
          </div>
+      </div>
+
+      <div className="bg-surface border border-border p-8 rounded-3xl shadow-2xl">
+        <div className="flex items-center gap-4 mb-8">
+           <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+              <Megaphone size={24} />
+           </div>
+           <div>
+              <h3 className="text-xl font-serif italic">Pop-up de Boas-Vindas</h3>
+              <p className="text-[10px] text-text-secondary uppercase tracking-widest">Controlo da mensagem exibida no login</p>
+           </div>
+        </div>
+
+        <div className="space-y-6">
+           <div className="flex items-center justify-between p-4 bg-bg/40 rounded-xl border border-white/5">
+              <div>
+                 <b className="text-white text-sm">Estado do Pop-up</b>
+                 <p className="text-[9px] text-text-secondary uppercase">Ativar ou desativar globalmente</p>
+              </div>
+              <button 
+                onClick={() => socket.emit('update_welcome_settings', { active: !appStatus.welcomeSettings?.active })}
+                className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${appStatus.welcomeSettings?.active ? 'bg-emerald-500 text-white' : 'bg-white/10 text-text-secondary'}`}
+              >
+                {appStatus.welcomeSettings?.active ? 'ATIVO' : 'DESATIVADO'}
+              </button>
+           </div>
+
+           <div className="space-y-3">
+              <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px]">Título do Pop-up</label>
+              <input 
+                type="text"
+                value={appStatus.welcomeSettings?.title}
+                onChange={(e) => setAppStatus({...appStatus, welcomeSettings: { ...appStatus.welcomeSettings, title: e.target.value }})}
+                className="w-full bg-black/40 border border-border p-4 rounded-xl text-white text-xs outline-none focus:border-accent"
+              />
+           </div>
+
+           <div className="space-y-3">
+              <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px]">Mensagem do Pop-up</label>
+              <textarea 
+                value={appStatus.welcomeSettings?.message}
+                onChange={(e) => setAppStatus({...appStatus, welcomeSettings: { ...appStatus.welcomeSettings, message: e.target.value }})}
+                className="w-full bg-black/40 border border-border p-4 rounded-xl text-white text-xs outline-none focus:border-accent min-h-[100px] resize-none"
+              />
+           </div>
+
+           <button 
+             onClick={() => {
+               socket.emit('update_welcome_settings', appStatus.welcomeSettings);
+               alert("Configurações de Boas-Vindas salvas!");
+             }}
+             className="w-full py-4 bg-accent text-bg rounded-xl text-[10px] font-black uppercase tracking-[3px] shadow-lg shadow-accent/20"
+           >
+              Salvar Alterações do Pop-up
+           </button>
+        </div>
       </div>
 
       <div className="bg-surface border border-border p-8 rounded-3xl shadow-2xl">

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wallet, History, AlertCircle, ArrowLeft, Send, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User as UserType } from '../types';
 import socket from '../lib/socket';
+import { useTranslation } from '../lib/i18n';
 
 interface WithdrawViewProps {
   user: UserType | null;
@@ -12,19 +13,17 @@ interface WithdrawViewProps {
 }
 
 export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [] }: WithdrawViewProps) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState('');
   const [channel, setChannel] = useState('M-Pesa (Vodacom)');
   const [showConfirm, setShowConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Time and Day check logic
   const isWithinTimeRange = () => {
     if (!user) return false;
     const plan = (vipPlans || []).find(p => p.name === user.level) || (vipPlans && vipPlans[0]);
-    
-    // Day check
     const now = new Date();
-    const today = now.getDay(); // 0=Sunday, 1=Monday...
+    const today = now.getDay();
     
     if (plan && plan.withdrawalDay !== undefined) {
       if (today !== plan.withdrawalDay) return false;
@@ -51,7 +50,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
           setIsProcessing(false);
           return;
       }
-      alert("Pedido enviado para aprovação do Administrador. Verifique o Chat da Família para notificações.");
+      alert(t('withdrawal_pending_msg'));
       setIsProcessing(false);
       setShowConfirm(false);
       onBack();
@@ -59,24 +58,22 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
 
     socket.on('withdrawal_received', handleReceived);
     return () => { socket.off('withdrawal_received', handleReceived); };
-  }, [onBack]);
+  }, [onBack, t]);
 
   const handleSubmitRequest = () => {
     setIsProcessing(true);
-    
     const requestData = {
       phone: user?.phone,
       amount: parseFloat(amount),
       channel: channel,
       balanceBefore: user?.balance
     };
-
     socket.emit('submit_withdrawal', requestData);
   };
 
   const handleOpenConfirm = () => {
     if (isMaintenance) {
-      alert("Atenção: O sistema de levantamentos está em manutenção temporária. Por favor, tente mais tarde.");
+      alert(t('withdrawal_maintenance_alert'));
       return;
     }
 
@@ -86,27 +83,26 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
       const today = new Date().getDay();
 
       if (plan && plan.withdrawalDay !== undefined && today !== plan.withdrawalDay) {
-        alert(`O levantamento para o seu nível (${user?.level}) só é permitido aos ${days[plan.withdrawalDay]}.`);
+        alert(t('withdrawal_day_restriction', { level: user?.level || '', day: days[plan.withdrawalDay] }));
         return;
       }
 
       if (plan?.withdrawalStart && plan?.withdrawalEnd) {
-        alert(`Horário de levantamento para o seu nível (${user?.level}) é das ${plan?.withdrawalStart} às ${plan?.withdrawalEnd}.`);
+        alert(t('withdrawal_time_restriction', { level: user?.level || '', start: plan?.withdrawalStart, end: plan?.withdrawalEnd }));
         return;
       }
       
-      // Generic error if somehow day check failed but isWithinTimeRange is false
-      alert("Neste momento não pode realizar levantamentos. Verifique o seu calendário VIP.");
+      alert(t('withdrawal_generic_restriction'));
       return;
     }
 
     const val = parseFloat(amount);
     if (!amount || val < 100) {
-      alert("Por favor, insira um montante válido (Mínimo 100 MT)");
+      alert(t('invalid_amount'));
       return;
     }
     if (val > (user?.balance || 0)) {
-      alert("Saldo insuficiente para este levantamento.");
+      alert(t('insufficient_balance'));
       return;
     }
     setShowConfirm(true);
@@ -118,24 +114,24 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
         <button onClick={onBack} className="text-text-secondary hover:text-accent transition-colors">
           <ArrowLeft size={24} />
         </button>
-        <h3 className="text-white font-serif italic text-2xl">Levantamento</h3>
-        <div className="w-6"></div> {/* Spacer */}
+        <h3 className="text-white font-serif italic text-2xl">{t('withdraw_view_title')}</h3>
+        <div className="w-6"></div>
       </div>
 
       <div className="bg-surface border border-border rounded-xl p-6 mb-8">
-        <small className="text-text-secondary uppercase text-[10px] tracking-widest font-bold block mb-2 text-center">Saldo Levantável</small>
+        <small className="text-text-secondary uppercase text-[10px] tracking-widest font-bold block mb-2 text-center">{t('withdrawable_balance')}</small>
         <div className="text-3xl font-serif text-accent text-center">MZN {(user?.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
       </div>
 
       <div className="space-y-6 mb-10">
         <div>
-          <label className="text-[10px] uppercase font-black text-text-secondary tracking-[2px] block mb-3">Montante a Levantar</label>
+          <label className="text-[10px] uppercase font-black text-text-secondary tracking-[2px] block mb-3">{t('amount_to_withdraw')}</label>
           <div className="relative">
             <input 
               type="number" 
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Mínimo 100 MT"
+              placeholder={t('min_amount_placeholder')}
               className="w-full bg-surface border border-border p-4 rounded-xl text-white outline-none focus:border-accent transition-colors"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent font-bold">MT</span>
@@ -143,7 +139,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
         </div>
 
         <div>
-          <label className="text-[10px] uppercase font-black text-text-secondary tracking-[2px] block mb-3">Canal de Pagamento</label>
+          <label className="text-[10px] uppercase font-black text-text-secondary tracking-[2px] block mb-3">{t('payment_channel')}</label>
           <div className="relative">
             <select 
               value={channel}
@@ -164,7 +160,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
           onClick={handleOpenConfirm}
           className="w-full bg-accent text-bg font-bold py-4 rounded-xl text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-accent/10"
         >
-          SOLICITAR SAQUE
+          {t('request_withdrawal_btn')}
         </button>
       </div>
 
@@ -172,12 +168,11 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
         <AlertCircle className="text-accent shrink-0" size={20} />
         <div>
           <p className="text-[10px] text-text-secondary uppercase tracking-wider leading-relaxed">
-            Os pedidos de levantamento são processados em até <span className="text-white font-bold">24 horas</span>. Taxa de serviço de 5% aplicada.
+            {t('withdrawal_processing_desc')}
           </p>
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       <AnimatePresence>
         {showConfirm && (
           <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-bg/95 backdrop-blur-md">
@@ -190,34 +185,34 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
               <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center text-accent mx-auto mb-6">
                 <ShieldCheck size={32} />
               </div>
-              <h4 className="text-white font-serif text-xl mb-2 italic">Confirmar Levantamento</h4>
-              <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-8">Verifique os dados da sua transação</p>
+              <h4 className="text-white font-serif text-xl mb-2 italic">{t('confirm_withdrawal')}</h4>
+              <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-8">{t('verify_transaction')}</p>
               
               <div className="bg-bg rounded-2xl p-6 mb-8 border border-border divide-y divide-border">
                 <div className="pb-4 flex justify-between items-center text-left">
-                  <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">Valor</span>
+                  <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">{t('value')}</span>
                   <b className="text-white font-serif">{(parseFloat(amount) || 0).toLocaleString()} MT</b>
                 </div>
                 <div className="py-4 flex justify-between items-center text-left">
-                  <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">Canal</span>
+                  <span className="text-text-secondary text-[8px] uppercase font-black tracking-widest">{t('channel_label')}</span>
                   <b className="text-white text-[11px] font-bold uppercase">{channel}</b>
                 </div>
                 <div className="pt-4 flex justify-between items-center text-left">
-                  <span className="text-accent text-[8px] uppercase font-black tracking-widest">Taxa (5%)</span>
+                  <span className="text-accent text-[8px] uppercase font-black tracking-widest">{t('fee')}</span>
                   <b className="text-accent font-serif">{((parseFloat(amount) || 0) * 0.05).toLocaleString()} MT</b>
                 </div>
               </div>
 
               <div className="flex flex-col gap-3">
                 <button 
-                  onClick={handleSubmitRequest}
-                  disabled={isProcessing}
-                  className="w-full bg-accent text-bg font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                   onClick={handleSubmitRequest}
+                   disabled={isProcessing}
+                   className="w-full bg-accent text-bg font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   {isProcessing ? (
                     <span className="animate-spin rounded-full h-4 w-4 border-2 border-bg border-t-transparent" />
                   ) : (
-                    <>CONTINUAR <CheckCircle2 size={16} /></>
+                    <>{t('continue_btn')} <CheckCircle2 size={16} /></>
                   )}
                 </button>
                 <button 
@@ -225,7 +220,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
                   disabled={isProcessing}
                   className="w-full bg-transparent border border-border text-text-secondary font-bold py-3 rounded-xl text-[9px] uppercase tracking-widest hover:bg-white/5"
                 >
-                  CANCELAR
+                  {t('cancel_btn')}
                 </button>
               </div>
             </motion.div>
