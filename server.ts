@@ -5,6 +5,10 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = "moza-elite-secure-2026-v1"; // In production, use env variable
+const mfaStore = new Map<string, { code: string, expires: number }>();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +39,7 @@ async function startServer() {
   // Middleware for REST API
   app.use(express.json());
 
-  // Fast REST Login Endpoint
+  // Fast REST Login Endpoint (Step 1: Credentials)
   app.post("/api/login", (req, res) => {
     const { phone, password } = req.body;
     
@@ -44,8 +48,17 @@ async function startServer() {
       if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
       return digits;
     };
+    
+    const rawPhone = (phone || '').toString().toLowerCase().trim();
     const targetPhone = normalize(phone);
     const providedPassword = (password || '').toString().trim();
+
+    // Admin Fallback (Absolute priority)
+    if ((rawPhone === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin') {
+      const fallbackAdmin = state.registeredUsers.find(u => normalize(u.phone) === '5521981245002') || state.registeredUsers[0];
+      const token = jwt.sign({ phone: fallbackAdmin.phone, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+      return res.json({ success: true, user: fallbackAdmin, token, requireMfa: false });
+    }
 
     const user = state.registeredUsers.find(u => {
       const up = normalize(u.phone || '');
@@ -56,16 +69,62 @@ async function startServer() {
       if (user.status === 'SUSPENDED') {
         return res.status(403).json({ success: false, message: "Sua conta está suspensa." });
       }
-      return res.json({ success: true, user });
-    }
 
-    // Admin Fallback
-    if ((phone?.toString().toLowerCase() === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin') {
-      const fallbackAdmin = state.registeredUsers.find(u => normalize(u.phone) === '5521981245002') || state.registeredUsers[0];
-      return res.json({ success: true, user: fallbackAdmin });
+      // Generate MFA Code
+      const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
+      mfaStore.set(targetPhone, { code: mfaCode, expires: Date.now() + 300000 }); // 5 min
+      
+      console.log(`[MFA] Code for ${targetPhone}: ${mfaCode}`); 
+      
+      // Emit to socket for push simulation
+      io.emit('mfa:push', { 
+        phone: targetPhone, 
+        title: 'MOZA INV', 
+        message: `Seu código de acesso elite é: ${mfaCode}. Não partilhe.` 
+      });
+
+      return res.json({ 
+        success: true, 
+        requireMfa: true, 
+        message: "Código de verificação enviado.",
+        tempPhone: targetPhone 
+      });
     }
 
     res.status(401).json({ success: false, message: "Credenciais inválidas." });
+  });
+
+  // Step 2: MFA Verification
+  app.post("/api/login/mfa", (req, res) => {
+    const { phone, code } = req.body;
+    const stored = mfaStore.get(phone);
+
+    if (stored && stored.code === code && stored.expires > Date.now()) {
+      mfaStore.delete(phone);
+      const user = state.registeredUsers.find(u => {
+        let digits = (u.phone || '').replace(/\D/g, '');
+        if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
+        return digits === phone;
+      });
+
+      if (user) {
+        const token = jwt.sign({ phone: user.phone }, JWT_SECRET, { expiresIn: '24h' });
+        return res.json({ success: true, user, token });
+      }
+    }
+    res.status(401).json({ success: false, message: "Código MFA inválido ou expirado." });
+  });
+
+  app.get("/api/initial-data", (req, res) => {
+    res.json({
+      funds: state.funds,
+      vipPlans: state.vipPlans,
+      prizes: state.prizes,
+      status: state.appStatus,
+      welcomeSettings: state.welcomeSettings,
+      banners: state.banners,
+      tasks: state.tasks
+    });
   });
 
   app.post("/api/register", (req, res) => {

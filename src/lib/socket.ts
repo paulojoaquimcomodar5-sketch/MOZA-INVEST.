@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 const socket = io({
-  transports: ['polling', 'websocket'], // Start with polling for better compatibility on mobile data
+  transports: ['websocket'], // Use websocket only to avoid xhr poll errors in this environment
   reconnection: true,
   reconnectionAttempts: 20,
   reconnectionDelay: 2000,

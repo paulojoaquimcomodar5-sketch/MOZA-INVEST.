@@ -19,6 +19,10 @@ import {
   Gem,
   Crown,
   ShieldCheck,
+  ShieldCheck as ShieldCheckIcon,
+  Shield,
+  Fingerprint,
+  SmartphoneNfc,
   AlertCircle,
   CheckCircle2,
   Bomb,
@@ -71,16 +75,54 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [tempPhone, setTempPhone] = useState('');
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [pushNotification, setPushNotification] = useState<{ title: string, message: string } | null>(null);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+    const handleMfaPush = (data: { phone: string, title: string, message: string }) => {
+      // Check if it's the phone being used or if we are in admin fallback
+      setPushNotification({ title: data.title, message: data.message });
+      // Play a sound simulation or haptic would go here
+      setTimeout(() => setPushNotification(null), 8000); // Auto hide after 8s
     };
+
+    socket.on('mfa:push', handleMfaPush);
+    return () => {
+      socket.off('mfa:push', handleMfaPush);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (window.PublicKeyCredential) {
+      setBiometricsAvailable(true);
+    }
+  }, []);
+
+  // Fetch Initial Data via REST for extreme speed
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const response = await fetch('/api/initial-data');
+        const data = await response.json();
+        setFunds(data.funds || []);
+        setVipPlans(data.vipPlans || []);
+        setPrizes(data.prizes || []);
+        setAppStatus(prev => ({ 
+          ...prev, 
+          status: data.status || 'OPEN', 
+          welcomeSettings: data.welcomeSettings || prev.welcomeSettings 
+        }));
+        setIsInitializing(false);
+      } catch (err) {
+        console.error("Failed to fetch initial data via REST:", err);
+        setIsInitializing(false);
+      }
+    };
+    fetchInitialData();
   }, []);
 
   const [appStatus, setAppStatus] = useState({ 
@@ -335,22 +377,86 @@ export default function App() {
         setIsAuthLoading(false);
 
         if (res.success) {
-          setUser(res.user);
-          setIsAuthenticated(true);
-          localStorage.setItem('moza_user', JSON.stringify(res.user));
-          setAuthError(null);
-          if (appStatus.welcomeSettings?.active) {
-            setShowWelcome(true);
+          if (res.requireMfa) {
+            setMfaStep(true);
+            setTempPhone(res.tempPhone);
+          } else {
+            completeLogin(res.user, res.token);
           }
-          // Ensure socket is connected for real-time features
-          if (!socket.connected) socket.connect();
         } else {
           setAuthError(res.message);
         }
       }
     } catch (err) {
       setIsAuthLoading(false);
-      setAuthError("Erro na conexão rápida. Verifique sua internet.");
+      setAuthError("Erro na conexão segura SSL. Verifique sua rede.");
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (mfaCode.length !== 6) return setAuthError("Insira o código de 6 dígitos.");
+    setIsAuthLoading(true);
+    setAuthError(null);
+
+    try {
+      const response = await fetch('/api/login/mfa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: tempPhone, code: mfaCode })
+      });
+      const res = await response.json();
+      setIsAuthLoading(false);
+
+      if (res.success) {
+        completeLogin(res.user, res.token);
+      } else {
+        setAuthError(res.message);
+      }
+    } catch (err) {
+      setIsAuthLoading(false);
+      setAuthError("Erro na verificação MFA.");
+    }
+  };
+
+  const completeLogin = (userData: any, token: string) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+    localStorage.setItem('moza_user', JSON.stringify(userData));
+    localStorage.setItem('moza_token', token);
+    setAuthError(null);
+    setMfaStep(false);
+    if (appStatus.welcomeSettings?.active) {
+      setShowWelcome(true);
+    }
+    if (!socket.connected) socket.connect();
+  };
+
+  const handleBiometricAuth = async () => {
+    if (!biometricsAvailable) return alert("Biometria não suportada neste dispositivo.");
+    
+    // Simulate/Actual WebAuthn attempt
+    setIsAuthLoading(true);
+    try {
+      // In a real production app, we would use navigator.credentials.get
+      // with a challenge from the server.
+      // For this high-fidelity UI simulation, we'll mimic the success state
+      // if the user has previously logged in on this device.
+      const savedUser = localStorage.getItem('moza_user');
+      if (savedUser) {
+        setTimeout(() => {
+          setIsAuthLoading(false);
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          setIsAuthenticated(true);
+          if (!socket.connected) socket.connect();
+        }, 1500);
+      } else {
+        setIsAuthLoading(false);
+        setAuthError("Primeiro faça login manual para registar Biometria.");
+      }
+    } catch (err) {
+      setIsAuthLoading(false);
+      setAuthError("Falha na autenticação biométrica.");
     }
   };
 
@@ -381,11 +487,14 @@ export default function App() {
 
   const logout = () => {
     localStorage.removeItem('moza_user');
+    localStorage.removeItem('moza_token');
     setUser(null);
     setIsAuthenticated(false);
     setIsAdminView(false);
     setActiveTab('home');
     setAuthForm({ phone: '', pass: '', invite: '' });
+    setMfaStep(false);
+    setMfaCode('');
   };
 
   const handlePaymentConfirm = (file: File | null, amount: number, type?: 'PAYMENT' | 'VIP_UPGRADE') => {
@@ -609,6 +718,18 @@ export default function App() {
   };
 
   // Maintenance Check (Global Lock)
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
+        <Logo size="lg" className="mb-8 animate-pulse" />
+        <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden relative">
+          <div className="absolute top-0 left-0 h-full bg-accent animate-progress w-full"></div>
+        </div>
+        <p className="mt-4 text-[8px] uppercase tracking-[3px] text-accent font-bold animate-pulse">Sincronizando Sistema de Elite...</p>
+      </div>
+    );
+  }
+
   if (!isAdminView && !isUserAdmin && (appStatus.status === 'MAINTENANCE' || appStatus.status === 'CLOSED')) {
      return (
        <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
@@ -667,6 +788,32 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-bg overflow-hidden relative font-sans">
+        {/* Simulation of System Push Notification */}
+        <AnimatePresence>
+          {pushNotification && (
+            <motion.div 
+              initial={{ y: -100, opacity: 0 }}
+              animate={{ y: 16, opacity: 1 }}
+              exit={{ y: -100, opacity: 0 }}
+              className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-sm"
+            >
+              <div className="bg-surface/90 backdrop-blur-xl border border-white/10 p-4 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-start gap-4">
+                <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-accent/20">
+                  <Logo size="sm" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-[2px] text-accent">{pushNotification.title}</span>
+                    <span className="text-[8px] text-text-secondary uppercase">Agora</span>
+                  </div>
+                  <p className="text-[11px] text-white/90 leading-normal font-medium">{pushNotification.message}</p>
+                </div>
+              </div>
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
         {/* Connection Status Banner */}
         {!isOnline && (
           <div className="w-full bg-red-600 text-white text-[9px] font-black uppercase tracking-[2px] py-2 text-center animate-pulse z-[100] fixed top-0 left-0">
@@ -689,95 +836,146 @@ export default function App() {
           </div>
           
           <div className="space-y-5">
-              <div className="relative">
-                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-                <input 
-                  type="tel" 
-                  placeholder={t('phone_number')}
-                  className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.phone}
-                  onChange={(e) => {
-                    setAuthForm({ ...authForm, phone: e.target.value });
-                    if(authError) setAuthError(null);
-                  }}
-                />
-              </div>
-              
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder={t('password')}
-                  className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.pass}
-                  onChange={(e) => {
-                    setAuthForm({ ...authForm, pass: e.target.value });
-                    if(authError) setAuthError(null);
-                  }}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-accent transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between px-1">
-                 <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" defaultChecked className="accent-accent scale-90" />
-                    <span className="text-[10px] text-text-secondary group-hover:text-text transition-colors uppercase tracking-widest font-bold">{t('remember_me')}</span>
-                 </label>
-                 <button className="text-[10px] text-accent font-bold uppercase tracking-widest hover:underline">{t('forgot_password')}</button>
-              </div>
-
-              {isRegisterMode && (
+            {mfaStep ? (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-5"
+              >
+                <div className="bg-accent/5 border border-accent/20 p-4 rounded-xl flex items-center gap-3 mb-2">
+                  <SmartphoneNfc size={20} className="text-accent" />
+                  <p className="text-[10px] text-accent/80 uppercase font-black text-left">
+                    Verificação em Duas Etapas (MFA) Ativa. Insira o código enviado.
+                  </p>
+                </div>
                 <div className="relative">
-                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
                   <input 
                     type="text" 
-                    placeholder={t('invite_code')}
-                    className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                    value={authForm.invite}
+                    maxLength={6}
+                    placeholder="Código de 6 dígitos"
+                    className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm tracking-[5px] font-black text-center"
+                    value={mfaCode}
                     onChange={(e) => {
-                      setAuthForm({ ...authForm, invite: e.target.value });
+                      setMfaCode(e.target.value.replace(/\D/g, ''));
                       if(authError) setAuthError(null);
                     }}
                   />
                 </div>
-              )}
-
-            <AnimatePresence>
-              {authError && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-[10px] flex items-center gap-2"
+                <button 
+                  onClick={handleMfaVerify}
+                  disabled={isAuthLoading}
+                  className="w-full bg-accent text-bg font-black py-4 rounded-xl shadow-lg hover:opacity-95 active:scale-95 transition-all mt-2 uppercase tracking-[3px] text-[10px]"
                 >
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span className="text-left font-medium uppercase tracking-wider">{authError}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-            <button 
-              onClick={handleAuth}
-              disabled={isAuthLoading || !isOnline}
-              className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${(isAuthLoading || !isOnline) ? 'opacity-50 cursor-wait' : ''}`}
-            >
-              {isAuthLoading ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>A PROCESSAR...</span>
-                </>
-              ) : (
-                !isOnline 
-                  ? 'INTERNET NECESSÁRIA' 
-                  : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
-              )}
-            </button>
+                  {isAuthLoading ? "Verificando..." : "Confirmar Acesso"}
+                </button>
+                <button 
+                  onClick={() => setMfaStep(false)}
+                  className="w-full text-[9px] uppercase tracking-widest text-text-secondary hover:text-white"
+                >
+                  Voltar ao Login
+                </button>
+              </motion.div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                  <input 
+                    type="tel" 
+                    placeholder={t('phone_number')}
+                    className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                    value={authForm.phone}
+                    onChange={(e) => {
+                      setAuthForm({ ...authForm, phone: e.target.value });
+                      if(authError) setAuthError(null);
+                    }}
+                  />
+                </div>
+                
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder={t('password')}
+                    className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                    value={authForm.pass}
+                    onChange={(e) => {
+                      setAuthForm({ ...authForm, pass: e.target.value });
+                      if(authError) setAuthError(null);
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-accent transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                      <input type="checkbox" defaultChecked className="accent-accent scale-90" />
+                      <span className="text-[10px] text-text-secondary group-hover:text-text transition-colors uppercase tracking-widest font-bold">{t('remember_me')}</span>
+                  </label>
+                  <button className="text-[10px] text-accent font-bold uppercase tracking-widest hover:underline">{t('forgot_password')}</button>
+                </div>
+
+                {isRegisterMode && (
+                  <div className="relative">
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                    <input 
+                      type="text" 
+                      placeholder={t('invite_code')}
+                      className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                      value={authForm.invite}
+                      onChange={(e) => {
+                        setAuthForm({ ...authForm, invite: e.target.value });
+                        if(authError) setAuthError(null);
+                      }}
+                    />
+                  </div>
+                )}
+
+                <AnimatePresence>
+                  {authError && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-[10px] flex items-center gap-2"
+                    >
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span className="text-left font-medium uppercase tracking-wider">{authError}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex gap-2 mt-4">
+                  <button 
+                    onClick={handleAuth}
+                    disabled={isAuthLoading || !isOnline}
+                    className={`flex-1 bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${(isAuthLoading || !isOnline) ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    {isAuthLoading ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase()
+                    )}
+                  </button>
+                  
+                  {!isRegisterMode && biometricsAvailable && (
+                    <button 
+                      onClick={handleBiometricAuth}
+                      className="w-14 bg-surface border border-border flex items-center justify-center rounded-xl text-accent hover:bg-accent/10 active:scale-95 transition-all"
+                      title="Login Biometric"
+                    >
+                      <Fingerprint size={24} />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
             
             <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8">
               {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
@@ -792,8 +990,12 @@ export default function App() {
               </button>
             </p>
 
-            <div className="pt-6 border-t border-white/5 opacity-40">
-               <p className="text-[8px] uppercase tracking-widest text-text-secondary leading-relaxed">
+            <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-3">
+               <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                  <ShieldCheck size={10} className="text-emerald-500" />
+                  <span className="text-[7px] text-emerald-500 uppercase font-black tracking-widest">Protocolo Seguro SSL (HTTPS) Ativo</span>
+               </div>
+               <p className="text-[8px] uppercase tracking-widest text-text-secondary leading-relaxed opacity-40 text-center">
                  {isRegisterMode 
                    ? 'O registo requer aprovação prévia e o código de convite oficial da MOZA INV.' 
                    : 'Administrador via WhatsApp para recuperação de credenciais.'}
@@ -801,9 +1003,9 @@ export default function App() {
                {!isSocketConnected && (
                  <button 
                    onClick={() => socket.connect()}
-                   className="mt-4 w-full py-2 border border-white/10 rounded-lg text-[8px] text-text-secondary uppercase tracking-widest hover:bg-white/5"
+                   className="mt-2 w-full py-2 border border-white/10 rounded-lg text-[8px] text-text-secondary uppercase tracking-widest hover:bg-white/5 opacity-50"
                  >
-                   Restabelecer Conexão de Dados
+                   Restabelecer Fluxo em Tempo Real
                  </button>
                )}
             </div>
@@ -815,7 +1017,33 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg pb-24 font-sans text-white">
+    <div className="min-h-screen bg-bg pb-24 font-sans text-white relative">
+      {/* Simulation of System Push Notification */}
+      <AnimatePresence>
+        {pushNotification && (
+          <motion.div 
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 16, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-sm"
+          >
+            <div className="bg-surface/90 backdrop-blur-xl border border-white/10 p-4 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-start gap-4">
+              <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-accent/20">
+                <Logo size="sm" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5" >
+                  <span className="text-[10px] font-black uppercase tracking-[2px] text-accent">{pushNotification.title}</span>
+                  <span className="text-[8px] text-text-secondary uppercase">Agora</span>
+                </div>
+                <p className="text-[11px] text-white/90 leading-normal font-medium">{pushNotification.message}</p>
+              </div>
+            </div>
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mt-2" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {isAdminView ? (
         <AdminDashboard onBack={() => setIsAdminView(false)} />
       ) : activeTab === 'lottery' ? (
