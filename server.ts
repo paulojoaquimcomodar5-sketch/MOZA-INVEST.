@@ -79,6 +79,17 @@ async function startServer() {
     }
   };
 
+  // Load state from file
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      const savedState = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+      state = { ...state, ...savedState };
+      console.log("[SERVER] Database loaded successfully from db.json");
+    } catch (e) {
+      console.error("[SERVER] Error loading database:", e);
+    }
+  }
+
   // Migration: Ensure all state properties exist and are of correct type
   state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
   state.pendingApprovals = Array.isArray(state.pendingApprovals) ? state.pendingApprovals : [];

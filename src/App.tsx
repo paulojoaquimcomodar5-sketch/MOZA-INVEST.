@@ -321,61 +321,69 @@ export default function App() {
     setIsAuthLoading(true);
 
     try {
-      if (isRegisterMode) {
-        if (!authForm.invite) {
-          setIsAuthLoading(false);
-          triggerShake();
-          return setAuthError(t('invite_required'));
-        }
-
-        const response = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            phone: sanitizedPhone, 
-            password: authForm.pass, 
-            inviteCode: authForm.invite,
-            name: `Investidor ${sanitizedPhone.slice(-3)}`
+      const response = await (isRegisterMode 
+        ? fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              phone: sanitizedPhone, 
+              password: authForm.pass, 
+              inviteCode: authForm.invite,
+              name: `Investidor ${sanitizedPhone.slice(-3)}`
+            })
           })
-        });
+        : fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              phone: sanitizedPhone, 
+              password: authForm.pass 
+            })
+          })
+      );
 
-        const res = await response.json();
-        setIsAuthLoading(false);
+      const contentType = response.headers.get("content-type");
+      
+      if (!response.ok) {
+        if (contentType && contentType.includes("application/json")) {
+           const errRes = await response.json();
+           setIsAuthLoading(false);
+           triggerShake();
+           return setAuthError(errRes.message || "Falha na autenticação.");
+        } else {
+           const text = await response.text();
+           console.error("Non-JSON Error:", text);
+           setIsAuthLoading(false);
+           triggerShake();
+           return setAuthError(`Erro do servidor (${response.status}). Reinicie a aplicação.`);
+        }
+      }
 
-        if (res.success) {
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Resposta inválida (Não é JSON). Verifique sua rede.");
+      }
+
+      const res = await response.json();
+      setIsAuthLoading(false);
+
+      if (res.success) {
+        if (isRegisterMode) {
           alert(t('welcome_msg'));
           setIsRegisterMode(false);
           setAuthError(null);
         } else {
-          setAuthError(res.message);
-          triggerShake();
+          completeLogin(res.user);
         }
       } else {
-        const response = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            phone: sanitizedPhone, 
-            password: authForm.pass 
-          })
-        });
-
-        const res = await response.json();
-        setIsAuthLoading(false);
-
-        if (res.success) {
-          completeLogin(res.user);
-        } else {
-          setAuthError(res.message);
-          triggerShake();
-        }
+        setAuthError(res.message);
+        triggerShake();
       }
     } catch (err: any) {
       setIsAuthLoading(false);
       triggerShake();
       console.error("Auth Exception:", err);
       const msg = err?.message || String(err);
-      setAuthError(`Erro na ligação: ${msg}. Por favor, verifique a sua rede ou recarregue a página.`);
+      setAuthError(`Erro de ligação: ${msg}`);
     }
   };
 
@@ -840,19 +848,6 @@ export default function App() {
               )}
             </button>
 
-            {!isRegisterMode && (
-              <button 
-                onClick={() => {
-                  setAuthForm({ phone: 'admin', pass: 'admin', invite: '' });
-                  // We use a small delay to ensure state is updated before handleAuth runs
-                  setTimeout(() => handleAuth(), 100);
-                }}
-                className="w-full mt-4 py-3 border border-accent/30 text-accent rounded-xl text-[9px] font-black uppercase tracking-[2px] hover:bg-accent/5 transition-colors"
-              >
-                Entrar Automaticamente (Modo Flexível)
-              </button>
-            )}
-            
             <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8">
               {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
               <button 
