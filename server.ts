@@ -10,6 +10,112 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
+  // State for Admin oversight
+  const DB_FILE = path.join(process.cwd(), 'db.json');
+
+  let state = {
+    messages: [
+      { id: '1', user: 'Admin', text: 'Bem-vindos à Família MOZA INV! Como posso ajudar hoje?', time: '09:00', isAdmin: true },
+      { id: '2', user: 'M. Carlos', text: 'Bom dia grupo! Alguém já recebeu o rendimento VIP 2?', time: '09:15', isAdmin: false },
+    ],
+    banners: [
+      { id: '1', text: 'MOZA INVESTIMENTOS LUXURY', sub: 'O seu capital, o nosso prestígio.', color: 'linear-gradient(135deg, #1e293b, #0f172a)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/luxury/1200/600' },
+      { id: '2', text: 'OPORTUNIDADE VIP 3', sub: 'Ative hoje e ganhe 15% de bónus imediato.', color: 'linear-gradient(135deg, #14161a, #2d3748)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/gold/1200/600' },
+    ],
+    pendingWithdrawals: [] as any[],
+    pendingApprovals: [] as any[],
+    auditLogs: [] as any[],
+    tasks: [
+      { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
+      { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
+      { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
+      { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
+    ] as any[],
+    registeredUsers: [
+      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
+      { phone: '875376446', name: 'LUISA ZULANE MALUMBE', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'LUISA' },
+      { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: '123', inviteCode: 'MOZA2026' }
+    ] as any[],
+    validInviteCode: "MOZA2026",
+    appStatus: 'OPEN' as 'OPEN' | 'MAINTENANCE' | 'CLOSED' | 'RESTRICTED',
+    closureMessage: 'A plataforma está temporariamente em manutenção. Voltaremos em breve!',
+    paymentMethods: {
+      mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+      emola: "875376446 (LUISA ZULANE MALUMBE)",
+      paypal: "paulichocomedy@gmail.com",
+      bank: ""
+    },
+    prizes: [
+      { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
+      { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
+      { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
+      { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
+      { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
+    ],
+    vipPlans: [
+      { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
+      { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
+      { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
+      { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
+      { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
+    ],
+    funds: [
+      { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
+      { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
+      { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
+    ],
+    welcomeSettings: {
+      active: true,
+      title: "Olá, {name}!",
+      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    }
+  };
+
+  const saveState = () => {
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2));
+    } catch (e) {
+      console.error("[SERVER] Error saving database:", e);
+    }
+  };
+
+  // Migration: Ensure all state properties exist and are of correct type
+  state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
+  state.pendingApprovals = Array.isArray(state.pendingApprovals) ? state.pendingApprovals : [];
+  state.pendingWithdrawals = Array.isArray(state.pendingWithdrawals) ? state.pendingWithdrawals : [];
+  state.messages = Array.isArray(state.messages) ? state.messages : [];
+  state.banners = Array.isArray(state.banners) ? state.banners : [];
+  state.auditLogs = Array.isArray(state.auditLogs) ? state.auditLogs : [];
+  state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
+
+  if (state.welcomeSettings === undefined) {
+    state.welcomeSettings = {
+      active: true,
+      title: "Olá, {name}!",
+      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    };
+  }
+
+  state.registeredUsers.forEach(u => {
+    if (u.level === undefined) u.level = 'Membro Grátis';
+    if (u.tickets === undefined) u.tickets = 0;
+    if (u.profileImage === undefined) u.profileImage = '';
+    if (!u.inviteCode || u.inviteCode === 'MOZA2026') {
+      u.inviteCode = 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    }
+  });
+
+  if (state.appStatus === undefined) state.appStatus = 'OPEN';
+  if (state.closureMessage === undefined) state.closureMessage = 'A plataforma está temporariamente em manutenção. Voltaremos em breve!';
+  if (state.paymentMethods === undefined) {
+    state.paymentMethods = {
+      mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
+      emola: "875376446 (LUISA ZULANE MALUMBE)",
+      paypal: "paulichocomedy@gmail.com",
+      bank: ""
+    };
+  }
+
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
@@ -34,6 +140,11 @@ async function startServer() {
 
   // Middleware for REST API
   app.use(express.json());
+  
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
   
   app.use((err: any, req: any, res: any, next: any) => {
     console.error("[SERVER ERROR]", err);
@@ -124,159 +235,6 @@ async function startServer() {
     saveState();
     res.json({ success: true, user: newUser });
   });
-
-  // State for Admin oversight
-  const DB_FILE = path.join(__dirname, 'db.json');
-
-  let state = {
-    messages: [
-      { id: '1', user: 'Admin', text: 'Bem-vindos à Família MOZA INV! Como posso ajudar hoje?', time: '09:00', isAdmin: true },
-      { id: '2', user: 'M. Carlos', text: 'Bom dia grupo! Alguém já recebeu o rendimento VIP 2?', time: '09:15', isAdmin: false },
-    ],
-    banners: [
-      { id: '1', text: 'MOZA INVESTIMENTOS LUXURY', sub: 'O seu capital, o nosso prestígio.', color: 'linear-gradient(135deg, #1e293b, #0f172a)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/luxury/1200/600' },
-      { id: '2', text: 'OPORTUNIDADE VIP 3', sub: 'Ative hoje e ganhe 15% de bónus imediato.', color: 'linear-gradient(135deg, #14161a, #2d3748)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/gold/1200/600' },
-    ],
-    pendingWithdrawals: [] as any[],
-    pendingApprovals: [] as any[],
-    auditLogs: [] as any[],
-    tasks: [
-      { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
-      { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
-      { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
-      { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
-    ] as any[],
-    registeredUsers: [
-      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
-      { phone: '875376446', name: 'LUISA ZULANE MALUMBE', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'LUISA' },
-      { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: '123', inviteCode: 'MOZA2026' }
-    ] as any[],
-    validInviteCode: "MOZA2026",
-    appStatus: 'OPEN' as 'OPEN' | 'MAINTENANCE' | 'CLOSED' | 'RESTRICTED',
-    closureMessage: 'A plataforma está temporariamente em manutenção. Voltaremos em breve!',
-    paymentMethods: {
-      mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
-      emola: "875376446 (LUISA ZULANE MALUMBE)",
-      paypal: "paulichocomedy@gmail.com",
-      bank: ""
-    },
-    prizes: [
-      { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
-      { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
-      { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
-      { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
-      { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
-    ],
-    vipPlans: [
-      { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
-      { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
-      { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
-      { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
-      { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
-    ],
-    funds: [
-      { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
-      { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
-      { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
-    ],
-    welcomeSettings: {
-      active: true,
-      title: "Olá, {name}!",
-      message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
-    }
-  };
-
-  // Load state from file
-  if (fs.existsSync(DB_FILE)) {
-    try {
-      const savedState = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-      state = { ...state, ...savedState };
-      
-    // Migration: Ensure all state properties exist and are of correct type
-    state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
-    state.pendingApprovals = Array.isArray(state.pendingApprovals) ? state.pendingApprovals : [];
-    state.pendingWithdrawals = Array.isArray(state.pendingWithdrawals) ? state.pendingWithdrawals : [];
-    state.messages = Array.isArray(state.messages) ? state.messages : [];
-    state.banners = Array.isArray(state.banners) ? state.banners : [];
-    state.auditLogs = Array.isArray(state.auditLogs) ? state.auditLogs : [];
-    state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
-
-    if (state.welcomeSettings === undefined) {
-      state.welcomeSettings = {
-        active: true,
-        title: "Olá, {name}!",
-        message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
-      };
-    }
-
-    state.registeredUsers.forEach(u => {
-      if (u.level === undefined) u.level = 'Membro Grátis';
-      if (u.tickets === undefined) u.tickets = 0;
-      if (u.profileImage === undefined) u.profileImage = '';
-      
-      // Ensure each user has a unique invite code (if they have the generic one)
-      if (!u.inviteCode || u.inviteCode === 'MOZA2026') {
-        u.inviteCode = 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      }
-    });
-
-    if (state.appStatus === undefined) state.appStatus = 'OPEN';
-      if (state.closureMessage === undefined) state.closureMessage = 'A plataforma está temporariamente em manutenção. Voltaremos em breve!';
-      if (state.paymentMethods === undefined) {
-        state.paymentMethods = {
-          mpesa: "858778905 (PAULO JOAQUIM COMODALI)",
-          emola: "875376446 (LUISA ZULANE MALUMBE)",
-          paypal: "paulichocomedy@gmail.com",
-          bank: ""
-        };
-      }
-      if (!state.tasks || state.tasks.length === 0) {
-        state.tasks = [
-          { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
-          { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
-          { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
-          { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
-        ];
-      }
-      if (state.prizes === undefined) {
-        state.prizes = [
-          { id: '1', name: 'Motorizada 150cc', image: 'https://picsum.photos/seed/motorcycle/1200/800', desc: 'Mota zero km para facilitar a sua mobilidade.' },
-          { id: '2', name: 'Smart TV 55" 4K', image: 'https://picsum.photos/seed/television/1200/800', desc: 'Experiência de cinema no conforto da sua sala.' },
-          { id: '3', name: 'iPhone 17 Pro', image: 'https://picsum.photos/seed/iphone/1200/800', desc: 'O smartphone mais avançado do mundo (Lançamento Exclusivo).' },
-          { id: '4', name: 'BMW X5 LUX', image: 'https://picsum.photos/seed/bmw/1200/800', desc: 'O máximo em luxo, potência e sofisticação alemã.' },
-          { id: '5', name: 'RACTS Premium', image: 'https://picsum.photos/seed/gold/1200/800', desc: 'Pacotes especiais de alocação e benefícios exclusivos.' },
-        ];
-      }
-      if (state.vipPlans === undefined) {
-        state.vipPlans = [
-          { id: '1', name: 'VIP 1', price: 500, daily: 36, tasks: 5, taskEarning: 7.2, color: '#D4AF37', icon: 'zap', withdrawalDay: 5 },
-          { id: '2', name: 'VIP 2', price: 2000, daily: 154, tasks: 10, taskEarning: 15.4, color: '#4A90E2', icon: 'diamond', withdrawalDay: 2 },
-          { id: '3', name: 'VIP 3', price: 6000, daily: 480, tasks: 15, taskEarning: 32, color: '#10B981', icon: 'crown', withdrawalDay: 3 },
-          { id: '4', name: 'VIP 4', price: 15000, daily: 1250, tasks: 20, taskEarning: 62.5, color: '#8B5CF6', icon: 'flame', withdrawalDay: 2 },
-          { id: '5', name: 'VIP 5', price: 40000, daily: 3500, tasks: 30, taskEarning: 116.6, color: '#F59E0B', icon: 'gem', withdrawalDay: 1 },
-        ];
-      }
-      if (state.funds === undefined) {
-        state.funds = [
-          { id: 'f1', name: 'Fundo Imobiliário Lux', rate: 1.8, min: 500, period: '7 Dias', risk: 'Baixo', desc: 'Investimentos em imóveis comerciais de alto padrão em Maputo.' },
-          { id: 'f2', name: 'Index Gold Moçambique', rate: 3.5, min: 2000, period: '30 Dias', risk: 'Médio', desc: 'Ativos lastreados no desempenho de commodities e metais preciosos.' },
-          { id: 'f3', name: 'Tech Growth Fund', rate: 5.2, min: 10000, period: '90 Dias', risk: 'Alto', desc: 'Aceleração de Softwares e infraestrutura digital 5G.' },
-        ];
-      }
-
-      console.log("[SERVER] Database loaded successfully.");
-    } catch (e) {
-      console.error("[SERVER] Error loading database:", e);
-    }
-  }
-
-  const saveState = () => {
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2));
-    } catch (e) {
-      console.error("[SERVER] Error saving database:", e);
-    }
-  };
 
   const addLog = (action: string, details: string) => {
     const log = {

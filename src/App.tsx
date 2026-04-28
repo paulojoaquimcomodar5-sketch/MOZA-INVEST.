@@ -370,11 +370,12 @@ export default function App() {
           triggerShake();
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       setIsAuthLoading(false);
       triggerShake();
       console.error("Auth Exception:", err);
-      setAuthError("Erro na conexão segura SSL. Verifique se o servidor está ativo ou sua rede.");
+      const msg = err?.message || String(err);
+      setAuthError(`Erro na ligação: ${msg}. Por favor, verifique a sua rede ou recarregue a página.`);
     }
   };
 
@@ -838,6 +839,19 @@ export default function App() {
                   : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
               )}
             </button>
+
+            {!isRegisterMode && (
+              <button 
+                onClick={() => {
+                  setAuthForm({ phone: 'admin', pass: 'admin', invite: '' });
+                  // We use a small delay to ensure state is updated before handleAuth runs
+                  setTimeout(() => handleAuth(), 100);
+                }}
+                className="w-full mt-4 py-3 border border-accent/30 text-accent rounded-xl text-[9px] font-black uppercase tracking-[2px] hover:bg-accent/5 transition-colors"
+              >
+                Entrar Automaticamente (Modo Flexível)
+              </button>
+            )}
             
             <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8">
               {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
