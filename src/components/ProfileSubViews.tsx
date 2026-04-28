@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown, Languages, Check, Fingerprint } from 'lucide-react';
+import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Terminal, Key, Smartphone, Lock, TrendingUp, Filter, Calendar, Download, ChevronDown, Languages, Check } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { useTranslation, Language } from '../lib/i18n';
 
@@ -354,44 +354,13 @@ export function SecurityView({ onBack }: SubViewProps) {
             </div>
           </div>
         );
-      case 'biometry':
-        return (
-          <div className="space-y-6">
-            <button onClick={() => setActiveStep('list')} className="text-accent flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest mb-2">
-              <ArrowLeft size={16} /> Voltar à Lista
-            </button>
-            <div className="bg-surface border border-border p-8 rounded-xl text-center space-y-6">
-              <div className="w-20 h-20 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Fingerprint size={40} className="text-accent animate-pulse" />
-              </div>
-              <div>
-                <b className="text-white block text-lg font-serif">Biometria de Elite</b>
-                <p className="text-text-secondary text-[10px] uppercase tracking-widest leading-relaxed mt-2">
-                  Ative o acesso ultrarrápido utilizando os sensores nativos do seu dispositivo móvel.
-                </p>
-              </div>
-              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                <p className="text-[9px] text-emerald-400 uppercase font-black tracking-widest">
-                  Dispositivo Compatível com HTTPS Seguro
-                </p>
-              </div>
-              <button 
-                onClick={() => alert("Biometria Registada com Sucesso no Protocolo HTTPS!")}
-                className="w-full bg-accent text-bg font-bold py-4 rounded-xl text-[10px] uppercase tracking-[3px] shadow-lg active:scale-95 transition-all"
-              >
-                Registar Impressão Digital
-              </button>
-            </div>
-          </div>
-        );
       default:
         return (
           <div className="space-y-4">
             {[
               { id: 'password', label: 'Alterar Senha de Login', Icon: Shield },
               { id: 'pin', label: 'Senha de Transação', Icon: Lock },
-              { id: '2fa', label: 'Autenticação 2FA (MFA)', Icon: Smartphone },
-              { id: 'biometry', label: 'Biometria (FaceID/Digital)', Icon: Fingerprint },
+              { id: '2fa', label: 'Autenticação 2FA', Icon: Smartphone },
             ].map(item => (
               <button 
                 key={item.id} 
