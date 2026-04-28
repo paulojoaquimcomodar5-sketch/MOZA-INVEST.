@@ -26,7 +26,8 @@ import {
   Bomb,
   Gift,
   Landmark,
-  HelpCircle
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Tab, User as UserType, VIPPlan } from './types';
@@ -53,6 +54,9 @@ import MinesGame from './components/MinesGame';
 import WelcomeModal from './components/WelcomeModal';
 import LoanView from './components/LoanView';
 import socket from './lib/socket';
+import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 import { useTranslation } from './lib/i18n';
 
@@ -223,9 +227,9 @@ export default function App() {
     });
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('connect_error', onConnectError);
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
       socket.off('app_status_update');
       socket.off('login_response');
       socket.off('registration_response');
@@ -303,6 +307,7 @@ export default function App() {
   }, [isSocketConnected]);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const handleAuth = async () => {
     setAuthError(null);
@@ -729,6 +734,7 @@ export default function App() {
              Sem conexão à internet. Verifique os seus dados.
           </div>
         )}
+        
         <div className={`flex-1 flex items-center justify-center p-6 ${!isOnline ? 'pt-12' : ''}`}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
@@ -748,28 +754,37 @@ export default function App() {
             }}
             className="bg-surface p-10 rounded-3xl w-full max-w-sm border border-border text-center shadow-2xl relative overflow-hidden"
           >
-          {/* Accent glow */}
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-          
-          <Logo size="lg" className="mb-4" />
-          <div className="mb-10">
-            <h2 className="text-white font-serif italic text-xl">A sua elite financeira</h2>
-            <p className="text-[9px] uppercase tracking-[2px] text-text-secondary mt-1">Aceda ao seu painel de rendimentos</p>
-          </div>
-          
-          <div className="space-y-5">
-              <div className="relative">
-                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-                <input 
-                  type="tel" 
-                  placeholder={t('phone_number')}
-                  className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.phone}
-                  onChange={(e) => {
-                    setAuthForm({ ...authForm, phone: e.target.value });
-                    if(authError) setAuthError(null);
-                  }}
-                />
+            {/* Accent glow */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <Logo size="lg" className="mb-4" />
+            <div className="mb-10">
+              <h2 className="text-white font-serif italic text-xl">
+                A sua elite financeira
+              </h2>
+              <p className="text-[9px] uppercase tracking-[2px] text-text-secondary mt-1">
+                Aceda ao seu painel de rendimentos
+              </p>
+            </div>
+            
+            <div className="space-y-5">
+              <div className="relative group">
+                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
+                <div className="flex bg-bg border border-border rounded-lg overflow-hidden focus-within:border-accent transition-all pl-10">
+                  <div className="bg-white/5 px-2 flex items-center border-r border-border text-text-secondary text-[10px] font-black tracking-tighter">
+                    +258
+                  </div>
+                  <input 
+                    type="tel" 
+                    placeholder="84 123 4567"
+                    className="w-full bg-transparent py-3 px-4 text-white outline-none text-sm placeholder:opacity-30"
+                   value={authForm.phone || ''}
+                    onChange={(e) => {
+                      setAuthForm({ ...authForm, phone: e.target.value });
+                      if(authError) setAuthError(null);
+                    }}
+                  />
+                </div>
               </div>
               
               <div className="relative">
@@ -778,7 +793,7 @@ export default function App() {
                   type={showPassword ? "text" : "password"} 
                   placeholder={t('password')}
                   className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.pass}
+                  value={authForm.pass || ''}
                   onChange={(e) => {
                     setAuthForm({ ...authForm, pass: e.target.value });
                     if(authError) setAuthError(null);
@@ -793,14 +808,6 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between px-1">
-                 <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" defaultChecked className="accent-accent scale-90" />
-                    <span className="text-[10px] text-text-secondary group-hover:text-text transition-colors uppercase tracking-widest font-bold">{t('remember_me')}</span>
-                 </label>
-                 <button className="text-[10px] text-accent font-bold uppercase tracking-widest hover:underline">{t('forgot_password')}</button>
-              </div>
-
               {isRegisterMode && (
                 <div className="relative">
                   <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
@@ -808,7 +815,7 @@ export default function App() {
                     type="text" 
                     placeholder={t('invite_code')}
                     className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                    value={authForm.invite}
+                    value={authForm.invite || ''}
                     onChange={(e) => {
                       setAuthForm({ ...authForm, invite: e.target.value });
                       if(authError) setAuthError(null);
@@ -817,73 +824,69 @@ export default function App() {
                 </div>
               )}
 
-                <AnimatePresence>
-                  {authError && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-[10px] flex items-center gap-2"
-                    >
-                      <AlertCircle size={14} className="shrink-0" />
-                      <span className="text-left font-medium uppercase tracking-wider">{authError}</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-            <button 
-              onClick={handleAuth}
-              disabled={isAuthLoading || !isOnline}
-              className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${(isAuthLoading || !isOnline) ? 'opacity-50 cursor-wait' : ''}`}
-            >
-              {isAuthLoading ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>A PROCESSAR...</span>
-                </>
-              ) : (
-                !isOnline 
-                  ? 'INTERNET NECESSÁRIA' 
-                  : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
+              {!isRegisterMode && (
+                <div className="flex items-center justify-between px-1">
+                  <button className="text-[9px] text-accent font-black uppercase tracking-widest hover:underline">
+                      {t('forgot_password')}
+                  </button>
+                </div>
               )}
-            </button>
 
-            <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8">
-              {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
+              <AnimatePresence>
+                {(authError || successMsg) && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className={`${authError ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} border rounded-lg p-3 text-[10px] flex items-center gap-2`}
+                  >
+                    {authError ? <AlertCircle size={14} className="shrink-0" /> : <CheckCircle2 size={14} className="shrink-0" />}
+                    <span className="text-left font-medium uppercase tracking-wider">{authError || successMsg}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <button 
-                onClick={() => {
-                  setIsRegisterMode(!isRegisterMode);
-                  setAuthError(null);
-                }}
-                className="text-accent font-bold hover:underline"
+                onClick={handleAuth}
+                disabled={isAuthLoading || !isOnline}
+                className={`w-full bg-linear-to-r from-blue-950 to-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-900/20 hover:opacity-95 active:scale-95 transition-all mt-6 uppercase tracking-[3px] text-[10px] flex items-center justify-center gap-3 ${(isAuthLoading || !isOnline) ? 'opacity-50 cursor-wait' : ''}`}
               >
-                {isRegisterMode ? t('login') : t('register')}
+                {isAuthLoading ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>A PROCESSAR...</span>
+                  </>
+                ) : (
+                  !isOnline 
+                    ? 'INTERNET NECESSÁRIA' 
+                    : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
+                )}
               </button>
-            </p>
 
-            <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-3">
-               <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                  <ShieldCheck size={10} className="text-emerald-500" />
-                  <span className="text-[7px] text-emerald-500 uppercase font-black tracking-widest">Protocolo Seguro SSL (HTTPS) Ativo</span>
-               </div>
-               <p className="text-[8px] uppercase tracking-widest text-text-secondary leading-relaxed opacity-40 text-center">
-                 {isRegisterMode 
-                   ? 'O registo requer aprovação prévia e o código de convite oficial da MOZA INV.' 
-                   : 'Administrador via WhatsApp para recuperação de credenciais.'}
-               </p>
-               {!isSocketConnected && (
-                 <button 
-                   onClick={() => socket.connect()}
-                   className="mt-2 w-full py-2 border border-white/10 rounded-lg text-[8px] text-text-secondary uppercase tracking-widest hover:bg-white/5 opacity-50"
-                 >
-                   Restabelecer Fluxo em Tempo Real
-                 </button>
-               )}
+              <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8 font-bold">
+                {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
+                <button 
+                  onClick={() => {
+                    setIsRegisterMode(!isRegisterMode);
+                    setAuthError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-accent font-black hover:underline"
+                >
+                  {isRegisterMode ? t('login') : t('register')}
+                </button>
+              </p>
+
+              <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                    <ShieldCheck size={10} className="text-emerald-500" />
+                    <span className="text-[7px] text-emerald-500 uppercase font-black tracking-widest">Protocolo Seguro SSL Ativo</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
-    </div>
     );
   }
 

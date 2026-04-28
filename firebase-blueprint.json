@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and financial data",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "balance": { "type": "number" },
+        "fundBalance": { "type": "number" },
+        "totalProfit": { "type": "number" },
+        "level": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"] },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "tickets": { "type": "number" },
+        "profileImage": { "type": "string" },
+        "upline": { "type": "string" },
+        "invitedCount": { "type": "number" }
+      },
+      "required": ["phone", "password", "name"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "Community chat message",
+      "type": "object",
+      "properties": {
+        "user": { "type": "string" },
+        "text": { "type": "string" },
+        "time": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      }
+    },
+    "Approval": {
+      "title": "Admin Approval",
+      "description": "Request needing admin intervention (deposit, upgrade, etc.)",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "user": { "type": "string" },
+        "data": { "type": "object" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "time": { "type": "string" }
+      }
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "User withdrawal request",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "amount": { "type": "number" },
+        "channel": { "type": "string" },
+        "account": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "COMPLETED"] },
+        "time": { "type": "string" }
+      }
+    },
+    "Config": {
+      "title": "App Configuration",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+         "status": { "type": "string" },
+         "message": { "type": "string" },
+         "welcomeSettings": { "type": "object" },
+         "validInviteCode": { "type": "string" },
+         "paymentMethods": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Registered users"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Community chat"
+    },
+    "/approvals/{approvalId}": {
+      "schema": "Approval",
+      "description": "Pending admin actions"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Pending withdrawals"
+    },
+    "/configs/{configId}": {
+      "schema": "Config",
+      "description": "Dynamic app settings"
+    }
+  }
+}

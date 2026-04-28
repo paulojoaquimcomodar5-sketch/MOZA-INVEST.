@@ -517,7 +517,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <textarea 
                            className="flex-1 bg-black/40 border border-white/10 p-4 rounded-2xl text-white text-xs outline-none focus:border-accent min-h-[100px] resize-none"
                            placeholder="Ex: A plataforma está em atualização de segurança. Voltamos em 2 horas..."
-                           value={appStatus.message}
+                           value={appStatus.message || ''}
                            onChange={(e) => setAppStatus({...appStatus, message: e.target.value})}
                         />
                         <button 
@@ -569,7 +569,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px]">Título do Pop-up</label>
               <input 
                 type="text"
-                value={appStatus.welcomeSettings?.title}
+                value={appStatus.welcomeSettings?.title || ''}
                 onChange={(e) => setAppStatus({...appStatus, welcomeSettings: { ...appStatus.welcomeSettings, title: e.target.value }})}
                 className="w-full bg-black/40 border border-border p-4 rounded-xl text-white text-xs outline-none focus:border-accent"
               />
@@ -578,7 +578,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
            <div className="space-y-3">
               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px]">Mensagem do Pop-up</label>
               <textarea 
-                value={appStatus.welcomeSettings?.message}
+                value={appStatus.welcomeSettings?.message || ''}
                 onChange={(e) => setAppStatus({...appStatus, welcomeSettings: { ...appStatus.welcomeSettings, message: e.target.value }})}
                 className="w-full bg-black/40 border border-border p-4 rounded-xl text-white text-xs outline-none focus:border-accent min-h-[100px] resize-none"
               />
@@ -636,7 +636,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
            <div className="bg-bg/40 border border-white/5 p-8 rounded-2xl">
               <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-4">Mensagem de Bloqueio Personalizada</label>
               <textarea 
-                value={appStatus.message}
+                value={appStatus.message || ''}
                 onChange={(e) => socket.emit('update_closure_message', e.target.value)}
                 placeholder="Ex: A nossa equipa está a processar os pagamentos semanais. Voltaremos em 1 hora."
                 className="w-full bg-black/40 border border-border p-5 rounded-xl text-white text-xs outline-none focus:border-accent min-h-[120px] resize-none leading-relaxed"
@@ -664,7 +664,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">M-Pesa (Número + Titular)</label>
                <input 
-                 value={paymentMethods.mpesa} 
+                 value={paymentMethods.mpesa || ''} 
                  onChange={(e) => setPaymentMethods({...paymentMethods, mpesa: e.target.value})}
                  className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
                />
@@ -672,7 +672,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">e-Mola (Número + Titular)</label>
                <input 
-                 value={paymentMethods.emola} 
+                 value={paymentMethods.emola || ''} 
                  onChange={(e) => setPaymentMethods({...paymentMethods, emola: e.target.value})}
                  className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
                />
@@ -680,7 +680,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">PayPal (Email)</label>
                <input 
-                 value={paymentMethods.paypal} 
+                 value={paymentMethods.paypal || ''} 
                  onChange={(e) => setPaymentMethods({...paymentMethods, paypal: e.target.value})}
                  className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent"
                />
@@ -832,7 +832,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                        <input 
                          type="text" 
                          placeholder="Novo Código de Convite..."
-                         value={tempInviteCode}
+                         value={tempInviteCode || ''}
                          onChange={(e) => setTempInviteCode(e.target.value.toUpperCase())}
                          className="flex-1 bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent text-sm"
                        />
@@ -872,7 +872,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
 
                        <div className="space-y-4">
                           <textarea 
-                            value={broadcastMsg}
+                            value={broadcastMsg || ''}
                             onChange={(e) => setBroadcastMsg(e.target.value)}
                             placeholder="Escreva a mensagem oficial aqui... Todos os utilizadores verão isto no Chat da Família com destaque Administrativo."
                             className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-white text-sm outline-none focus:border-accent min-h-[120px] resize-none leading-relaxed transition-all"
@@ -962,7 +962,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                       <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Título do Banner</label>
                       <input 
                         type="text" 
-                        value={newBanner.text}
+                        value={newBanner.text || ''}
                         onChange={(e) => setNewBanner({...newBanner, text: e.target.value})}
                         className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
                       />
@@ -971,7 +971,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                       <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Subtítulo / Descrição</label>
                       <input 
                         type="text" 
-                        value={newBanner.sub}
+                        value={newBanner.sub || ''}
                         onChange={(e) => setNewBanner({...newBanner, sub: e.target.value})}
                         className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
                       />
@@ -980,7 +980,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                       <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Cor de Fundo (CSS Gradient)</label>
                       <input 
                         type="text" 
-                        value={newBanner.color}
+                        value={newBanner.color || ''}
                         onChange={(e) => setNewBanner({...newBanner, color: e.target.value})}
                         className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs"
                       />
@@ -989,7 +989,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                       <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Cor do Texto (Hex)</label>
                       <input 
                         type="text" 
-                        value={newBanner.textColor}
+                        value={newBanner.textColor || ''}
                         onChange={(e) => setNewBanner({...newBanner, textColor: e.target.value})}
                         className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs"
                       />
@@ -999,7 +999,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                       <input 
                         type="text" 
                         placeholder="https://exemplo.com/foto.jpg"
-                        value={newBanner.imageUrl}
+                        value={newBanner.imageUrl || ''}
                         onChange={(e) => setNewBanner({...newBanner, imageUrl: e.target.value})}
                         className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs"
                       />
@@ -1058,7 +1058,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nome do Prêmio</label>
                         <input 
                           type="text" 
-                          value={newPrize.name}
+                          value={newPrize.name || ''}
                           onChange={(e) => setNewPrize({...newPrize, name: e.target.value})}
                           className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
                           placeholder="Ex: iPhone 17 Pro"
@@ -1068,7 +1068,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">URL da Imagem</label>
                         <input 
                           type="text" 
-                          value={newPrize.image}
+                          value={newPrize.image || ''}
                           onChange={(e) => setNewPrize({...newPrize, image: e.target.value})}
                           className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent"
                           placeholder="https://..."
@@ -1077,7 +1077,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                      <div className="md:col-span-2">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Descrição</label>
                         <textarea 
-                          value={newPrize.desc}
+                          value={newPrize.desc || ''}
                           onChange={(e) => setNewPrize({...newPrize, desc: e.target.value})}
                           className="w-full bg-bg border border-border p-4 rounded-xl text-white outline-none focus:border-accent min-h-[100px] resize-none"
                           placeholder="Detalhes sobre o sorteio..."

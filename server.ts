@@ -5,6 +5,8 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { adminDb } from "./src/lib/firebase-admin";
+import firebaseConfig from "./firebase-applet-config.json";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,10 +16,7 @@ async function startServer() {
   const DB_FILE = path.join(process.cwd(), 'db.json');
 
   let state = {
-    messages: [
-      { id: '1', user: 'Admin', text: 'Bem-vindos à Família MOZA INV! Como posso ajudar hoje?', time: '09:00', isAdmin: true },
-      { id: '2', user: 'M. Carlos', text: 'Bom dia grupo! Alguém já recebeu o rendimento VIP 2?', time: '09:15', isAdmin: false },
-    ],
+    messages: [] as any[],
     banners: [
       { id: '1', text: 'MOZA INVESTIMENTOS LUXURY', sub: 'O seu capital, o nosso prestígio.', color: 'linear-gradient(135deg, #1e293b, #0f172a)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/luxury/1200/600' },
       { id: '2', text: 'OPORTUNIDADE VIP 3', sub: 'Ative hoje e ganhe 15% de bónus imediato.', color: 'linear-gradient(135deg, #14161a, #2d3748)', textColor: '#e3b341', imageUrl: 'https://picsum.photos/seed/gold/1200/600' },
@@ -68,12 +67,65 @@ async function startServer() {
       active: true,
       title: "Olá, {name}!",
       message: "A sua jornada para a elite financeira continua. Comece as suas tarefas diárias para maximizar os rendimentos."
+    },
+    pendingOTPs: {} as Record<string, { code: string, expires: number, userData: any }>
+  };
+
+  const syncToFirestore = async () => {
+    try {
+      console.log("[FIREBASE] Syncing to Firestore database:", firebaseConfig.firestoreDatabaseId);
+      // Sync messages
+      if (state.messages.length > 0) {
+        const batch = adminDb.batch();
+        state.messages.forEach(m => {
+          const docRef = adminDb.collection('messages').doc(m.id);
+          batch.set(docRef, { ...m, timestamp: m.timestamp || Date.now() });
+        });
+        await batch.commit();
+      }
+      // Sync config
+      await adminDb.collection('configs').doc('app_status').set({ 
+        status: state.appStatus, 
+        message: state.closureMessage,
+        welcomeSettings: state.welcomeSettings,
+        validInviteCode: state.validInviteCode,
+        paymentMethods: state.paymentMethods
+      });
+      console.log("[FIREBASE] State synced successfully");
+    } catch (e: any) {
+      console.warn("[FIREBASE] Sync error:", e.message);
+      if (e.code) console.warn("[FIREBASE] Error code:", e.code);
+      if (e.details) console.warn("[FIREBASE] Error details:", e.details);
+    }
+  };
+
+  const loadFromFirestore = async () => {
+    try {
+      console.log("[FIREBASE] Loading from Firestore database:", firebaseConfig.firestoreDatabaseId);
+      const msgSnap = await adminDb.collection('messages').orderBy('timestamp', 'desc').limit(50).get();
+      if (!msgSnap.empty) {
+        state.messages = msgSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+      }
+      const configSnap = await adminDb.collection('configs').doc('app_status').get();
+      if (configSnap.exists) {
+        const data = configSnap.data() as any;
+        state.appStatus = data.status || state.appStatus;
+        state.closureMessage = data.message || state.closureMessage;
+        state.welcomeSettings = data.welcomeSettings || state.welcomeSettings;
+        state.validInviteCode = data.validInviteCode || state.validInviteCode;
+        state.paymentMethods = data.paymentMethods || state.paymentMethods;
+      }
+      console.log("[FIREBASE] State loaded successfully");
+    } catch (e: any) {
+      console.warn("[FIREBASE] Load error:", e.message);
+      if (e.code) console.warn("[FIREBASE] Error code:", e.code);
     }
   };
 
   const saveState = () => {
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2));
+      syncToFirestore(); // Fire and forget
     } catch (e) {
       console.error("[SERVER] Error saving database:", e);
     }
@@ -89,6 +141,9 @@ async function startServer() {
       console.error("[SERVER] Error loading database:", e);
     }
   }
+
+  // Initial load from cloud
+  await loadFromFirestore();
 
   // Migration: Ensure all state properties exist and are of correct type
   state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
@@ -162,29 +217,31 @@ async function startServer() {
     res.status(500).json({ success: false, message: "Erro interno no servidor." });
   });
 
+  const normalizePhone = (p: string) => {
+    let digits = (p || '').toString().replace(/\D/g, '');
+    // If it starts with 258 and has 12 digits (standard full MZ), strip 258
+    if (digits.length >= 12 && digits.startsWith('258')) digits = digits.slice(3);
+    // Standard Mozambique numbers are 9 digits starting with 8
+    return digits;
+  };
+
   // Fast REST Login Endpoint (Step 1: Credentials)
   app.post("/api/login", (req, res) => {
     console.log(`[REST] Login request: ${JSON.stringify(req.body)}`);
     const { phone, password } = req.body;
     
-    const normalize = (p: string) => {
-      let digits = (p || '').toString().replace(/\D/g, '');
-      if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
-      return digits;
-    };
-    
     const rawPhone = (phone || '').toString().toLowerCase().trim();
-    const targetPhone = normalize(phone);
+    const targetPhone = normalizePhone(phone);
     const providedPassword = (password || '').toString().trim();
 
     // Admin Fallback (Absolute priority)
     if ((rawPhone === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin') {
-      const fallbackAdmin = state.registeredUsers.find(u => normalize(u.phone) === '5521981245002') || state.registeredUsers[0];
+      const fallbackAdmin = state.registeredUsers.find(u => normalizePhone(u.phone) === '5521981245002') || state.registeredUsers[0];
       return res.json({ success: true, user: fallbackAdmin });
     }
 
     const user = state.registeredUsers.find(u => {
-      const up = normalize(u.phone || '');
+      const up = normalizePhone(u.phone || '');
       return up === targetPhone && u.password === providedPassword;
     });
     
@@ -193,10 +250,79 @@ async function startServer() {
         return res.status(403).json({ success: false, message: "Sua conta está suspensa." });
       }
 
-      return res.json({ success: true, user });
+      // Generate OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      state.pendingOTPs[targetPhone] = {
+        code: otpCode,
+        expires: Date.now() + 5 * 60 * 1000, // 5 minutes
+        userData: user
+      };
+
+      console.log(`\n[SMS GATEWAY - MOZA INV] \nTO: +258 ${targetPhone}\nMESSAGE: O seu código de verificação é: ${otpCode}. Valido por 5 minutos.\n`);
+
+      // Broadcast for demo simulation
+      io.emit("simulated_sms_received", { 
+        from: "MOZA INV", 
+        message: `O seu código de verificação é: ${otpCode}.`,
+        code: otpCode 
+      });
+      
+      return res.json({ success: true, needsOtp: true, phone: targetPhone });
     }
 
     res.status(401).json({ success: false, message: "Credenciais inválidas." });
+  });
+
+  app.post("/api/request-otp", (req, res) => {
+    const { phone } = req.body;
+    const targetPhone = normalizePhone(phone);
+    
+    const user = state.registeredUsers.find(u => normalizePhone(u.phone) === targetPhone);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Este número não está registado." });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    state.pendingOTPs[targetPhone] = {
+      code: otpCode,
+      expires: Date.now() + 5 * 60 * 1000,
+      userData: user
+    };
+
+    console.log(`\n[SMS GATEWAY - MOZA INV] \nTO: +258 ${targetPhone}\nMESSAGE: O seu código de verificação é: ${otpCode}. Valido por 5 minutos.\n`);
+    
+    // Broadcast for the frontend simulation
+    io.emit("simulated_sms_received", { 
+      from: "MOZA INV", 
+      message: `O seu código de verificação é: ${otpCode}.`,
+      code: otpCode 
+    });
+
+    return res.json({ success: true, message: "Código enviado com sucesso!" });
+  });
+
+  app.post("/api/verify-otp", (req, res) => {
+    const { phone, code } = req.body;
+    const targetPhone = normalizePhone(phone);
+    
+    const otpData = state.pendingOTPs[targetPhone];
+    
+    if (!otpData) {
+      return res.status(400).json({ success: false, message: "Sessão expirada ou inválida. Tente o login novamente." });
+    }
+    
+    if (Date.now() > otpData.expires) {
+      delete state.pendingOTPs[targetPhone];
+      return res.status(400).json({ success: false, message: "O código OTP expirou." });
+    }
+    
+    if (otpData.code === code) {
+      const user = otpData.userData;
+      delete state.pendingOTPs[targetPhone];
+      return res.json({ success: true, user });
+    }
+    
+    res.status(401).json({ success: false, message: "Código OTP inválido." });
   });
 
   app.get("/api/initial-data", (req, res) => {
@@ -214,14 +340,11 @@ async function startServer() {
   app.post("/api/register", (req, res) => {
     const { phone, password, inviteCode, name } = req.body;
     
-    const normalize = (p: string) => {
-      let digits = (p || '').toString().replace(/\D/g, '');
-      if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
-      return digits;
-    };
-    const targetPhone = normalize(phone);
+    const targetPhone = normalizePhone(phone);
+    // Invite code is no longer mandatory
+    // if (!inviteCode) return res.status(400).json({ success: false, message: "Código de convite é obrigatório." });
 
-    if (state.registeredUsers.some(u => normalize(u.phone) === targetPhone)) {
+    if (state.registeredUsers.some(u => normalizePhone(u.phone) === targetPhone)) {
       return res.status(400).json({ success: false, message: "Este número já está registado." });
     }
 
@@ -348,13 +471,8 @@ async function startServer() {
 
     // Session Validation (Full Stack Sync)
     socket.on("validate_session", ({ phone }) => {
-      const normalize = (p: string) => {
-        let digits = (p || '').replace(/\D/g, '');
-        if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
-        return digits;
-      };
-      const targetPhone = normalize(phone);
-      const user = state.registeredUsers.find(u => normalize(u.phone || '') === targetPhone);
+      const targetPhone = normalizePhone(phone);
+      const user = state.registeredUsers.find(u => normalizePhone(u.phone || '') === targetPhone);
       if (user) {
         const { password: _, ...safeUser } = user;
         socket.emit("user_data_updated", safeUser);
@@ -367,16 +485,10 @@ async function startServer() {
       try {
         console.log(`[AUTH] Login attempt for: "${phone}"`);
         
-        // Simple Normalization: Keep only digits and strip common MZ prefix
-        const normalize = (p: string) => {
-          let digits = (p || '').replace(/\D/g, '');
-          if (digits.length > 9 && digits.startsWith('258')) digits = digits.slice(3);
-          return digits;
-        };
-        const targetPhone = normalize(phone);
+        const targetPhone = normalizePhone(phone);
         
         const user = state.registeredUsers.find(u => {
-          const up = normalize(u.phone || '');
+          const up = normalizePhone(u.phone || '');
           return up === targetPhone;
         });
 
@@ -394,7 +506,7 @@ async function startServer() {
         } else {
           // Special fallback for admin if for some reason the DB is cleared/corrupted
           if ((phone.toLowerCase() === 'admin' || targetPhone === '5521981245002') && password === 'admin') {
-             const fallbackAdmin = state.registeredUsers.find(u => normalize(u.phone) === '5521981245002') || state.registeredUsers[0];
+              const fallbackAdmin = state.registeredUsers.find(u => normalizePhone(u.phone) === '5521981245002') || state.registeredUsers[0];
              console.log("[AUTH] Using Admin Fallback");
              socket.emit("login_response", { success: true, user: fallbackAdmin });
              return;
@@ -794,11 +906,16 @@ async function startServer() {
         user: isAdmin ? 'ADMINISTRADOR' : data.user,
         text: data.text,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isAdmin: isAdmin
+        isAdmin: isAdmin,
+        timestamp: Date.now()
       };
       state.messages.push(newMessage);
       if (state.messages.length > 50) state.messages.shift();
       saveState();
+      
+      // Async sync to Firestore
+      adminDb.collection('messages').doc(newMessage.id).set(newMessage).catch(e => console.warn("[FIREBASE] Msg sync error:", e));
+      
       io.emit("new_message", newMessage);
 
       // Auto-reply logic for "Chat Familiar"

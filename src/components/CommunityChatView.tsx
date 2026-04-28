@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, User, ShieldCheck, Bot, Sparkles } from 'lucide-react';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import socket from '../lib/socket';
 import { User as UserType } from '../types';
 import { askMozaAI } from '../services/geminiService';
@@ -12,6 +14,7 @@ interface Message {
   time: string;
   isAdmin: boolean;
   isBroadcast?: boolean;
+  timestamp?: number;
 }
 
 interface CommunityChatViewProps {
@@ -27,18 +30,19 @@ export default function CommunityChatView({ user, onBack }: CommunityChatViewPro
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    socket.on('initial_messages', (initialData: Message[]) => {
-      setMessages(initialData);
+    // Listen to messages in real-time from Firestore
+    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Message[];
+      setMessages(msgs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'messages');
     });
 
-    socket.on('new_message', (message: Message) => {
-      setMessages(prev => [...prev, message]);
-    });
-
-    return () => {
-      socket.off('initial_messages');
-      socket.off('new_message');
-    };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
