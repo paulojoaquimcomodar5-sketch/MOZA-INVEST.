@@ -178,7 +178,7 @@ export function SupportView(props: SupportViewProps) {
             <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2 ml-1">Seu E-mail para Contacto</label>
             <input 
               type="email" 
-              value={email}
+              value={email || ''}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="exemplo@email.com"
               className="w-full bg-bg border border-border p-4 rounded-xl text-white text-xs outline-none focus:border-accent transition-colors shadow-inner"
@@ -187,7 +187,7 @@ export function SupportView(props: SupportViewProps) {
           <div>
             <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2 ml-1">Assunto ou Mensagem</label>
             <textarea 
-              value={message}
+              value={message || ''}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Como podemos ajudar você hoje?"
               rows={3}

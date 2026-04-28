@@ -129,7 +129,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
           <div className="relative">
             <input 
               type="number" 
-              value={amount}
+              value={amount || 0}
               onChange={(e) => setAmount(e.target.value)}
               placeholder={t('min_amount_placeholder')}
               className="w-full bg-surface border border-border p-4 rounded-xl text-white outline-none focus:border-accent transition-colors"
@@ -142,7 +142,7 @@ export default function WithdrawView({ user, onBack, isMaintenance, vipPlans = [
           <label className="text-[10px] uppercase font-black text-text-secondary tracking-[2px] block mb-3">{t('payment_channel')}</label>
           <div className="relative">
             <select 
-              value={channel}
+              value={channel || 'm-pesa'}
               onChange={(e) => setChannel(e.target.value)}
               className="w-full bg-surface border border-border p-4 rounded-xl text-white outline-none focus:border-accent transition-colors appearance-none"
             >

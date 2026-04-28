@@ -174,7 +174,7 @@ export default function FundView({ user, funds }: FundViewProps) {
                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" size={16} />
                     <input 
                       type="number" 
-                      value={amount}
+                      value={amount || 0}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder={t('min_placeholder', { min: selectedFund.min })}
                       className="w-full bg-bg border border-border p-4 pl-12 rounded-xl text-white outline-none focus:border-accent transition-colors"

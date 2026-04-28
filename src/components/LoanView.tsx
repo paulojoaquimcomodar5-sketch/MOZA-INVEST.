@@ -148,7 +148,7 @@ export default function LoanView({ user, onBack }: LoanViewProps) {
                     min="10000" 
                     max="100000" 
                     step="5000"
-                    value={amount}
+                    value={amount || 0}
                     onChange={(e) => setAmount(e.target.value)}
                     className="w-full accent-accent h-1 bg-border rounded-lg appearance-none cursor-pointer"
                   />

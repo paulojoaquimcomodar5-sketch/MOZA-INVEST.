@@ -59,7 +59,7 @@ export default function PaymentModal({ onClose, onConfirm, initialAmount, title,
           <label className="text-[10px] uppercase font-bold tracking-widest text-text-secondary mb-3 block">Valor da Recarga (MT)</label>
           <input 
             type="number" 
-            value={val}
+            value={val || 0}
             onChange={(e) => setVal(e.target.value)}
             className="w-full bg-bg border border-border p-3 rounded-lg text-white font-bold outline-none focus:border-accent text-sm"
           />

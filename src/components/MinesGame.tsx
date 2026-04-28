@@ -328,7 +328,7 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
                   <div className="relative">
                     <input 
                       type="number"
-                      value={betAmount}
+                      value={betAmount || 0}
                       onChange={(e) => {
                         setBetAmount(Math.max(0, parseInt(e.target.value) || 0));
                         setValidationError(null);
@@ -346,7 +346,7 @@ const MinesGame: React.FC<MinesGameProps> = ({ user, onBack, onUpdateUser }) => 
                     <Bomb size={12} /> Minas (1-24)
                   </label>
                   <select 
-                    value={minesCount}
+                    value={minesCount || 5}
                     onChange={(e) => setMinesCount(parseInt(e.target.value))}
                     className="w-full bg-bg border border-border p-3 rounded-xl text-white text-sm outline-none focus:border-accent appearance-none"
                   >

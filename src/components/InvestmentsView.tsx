@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Youtube, Facebook, Music, CheckCircle2, Play, Timer, ExternalLink, ShieldCheck, Zap, Gem, Crown, AlertTriangle, Gift, BarChart3, X, HelpCircle } from 'lucide-react';
+import { Youtube, Facebook, Music, CheckCircle2, Play, Timer, ExternalLink, ShieldCheck, Zap, Gem, Crown, AlertTriangle, Gift, BarChart3, X, HelpCircle, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { User as UserType, Task as TaskType } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -449,13 +449,37 @@ export default function InvestmentsView({ user, isMaintenance, vipPlans = [] }: 
           })}
         </div>
 
-      <div className="bg-linear-to-br from-surface to-bg border border-border p-6 rounded-2xl text-center">
-        <h4 className="text-white font-serif italic text-lg mb-2">{t('how_to_earn')}</h4>
-        <div className="space-y-3 text-[10px] uppercase tracking-widest text-text-secondary leading-relaxed">
-          <p>{t('step1')}</p>
-          <p>{t('step2')}</p>
-          <p>{t('step3')}</p>
+      <div className="bg-linear-to-br from-surface/80 to-bg border border-accent/20 p-8 rounded-[2rem] text-center shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-accent/30 rounded-full blur-[1px]"></div>
+        
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center text-accent ring-4 ring-accent/5">
+            <Sparkles size={32} />
+          </div>
+          <h4 className="text-white font-serif italic text-2xl tracking-tight">{t('how_to_earn')}</h4>
+          <div className="w-12 h-0.5 bg-accent/40 rounded-full"></div>
         </div>
+
+        <div className="space-y-6 max-w-sm mx-auto">
+          {[
+            { key: 'step1', icon: Gem },
+            { key: 'step2', icon: Timer },
+            { key: 'step3', icon: Zap }
+          ].map((item, idx) => (
+            <div key={idx} className="flex items-center gap-4 text-left group">
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-accent/60 group-hover:text-accent group-hover:bg-accent/10 transition-all duration-300 shrink-0">
+                <item.icon size={20} />
+              </div>
+              <p className="text-[11px] uppercase tracking-[0.1em] text-text-secondary group-hover:text-white transition-colors leading-relaxed font-bold">
+                {t(item.key)}
+              </p>
+            </div>
+          ))}
+        </div>
+        
+        <p className="mt-8 text-[9px] text-accent/50 font-black uppercase tracking-[3px]">
+          Moza Investimentos • 2026
+        </p>
       </div>
     </div>
   );

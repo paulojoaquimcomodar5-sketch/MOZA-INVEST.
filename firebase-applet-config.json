@@ -1,10 +1,10 @@
 {
-  "projectId": "ais-europe-west2-3d8f837233884",
-  "appId": "1:438112981650:web:0c4ff0341e73d591930c4b",
-  "apiKey": "AIzaSyC3MB8usanS6CiO7IsilGowXap5pLq_CBs",
-  "authDomain": "comodar-e983b.firebaseapp.com",
+  "projectId": "moza-bc843",
+  "appId": "1:34522928443:web:c8222883912644c8d1131e",
+  "apiKey": "AIzaSyBmdsM1_ZZmhieAwfPEwZzTDzN3wOkIz20",
+  "authDomain": "moza-bc843.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-97ec53d5-a46b-4137-81df-d75d610ee632",
-  "storageBucket": "comodar-e983b.appspot.com",
-  "messagingSenderId": "438112981650",
+  "storageBucket": "moza-bc843.firebasestorage.app",
+  "messagingSenderId": "34522928443",
   "measurementId": ""
 }

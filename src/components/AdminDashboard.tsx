@@ -470,21 +470,21 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Saque Mínimo (MZN)</label>
                <div className="flex gap-2">
-                  <input type="number" value={globalConfig.minWithdrawal} onChange={e => setGlobalConfig({...globalConfig, minWithdrawal: parseInt(e.target.value)})} className="flex-1 bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                  <input type="number" value={globalConfig.minWithdrawal || 0} onChange={e => setGlobalConfig({...globalConfig, minWithdrawal: parseInt(e.target.value)})} className="flex-1 bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   <button className="px-4 bg-accent/10 border border-accent/30 text-accent rounded-xl" onClick={() => socket.emit('update_config', globalConfig)}><CheckCircle2 size={18} /></button>
                </div>
             </div>
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Bónus de Inscricão (MZN)</label>
-               <input type="number" value={globalConfig.welcomeBonus} onChange={e => setGlobalConfig({...globalConfig, welcomeBonus: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
+               <input type="number" value={globalConfig.welcomeBonus || 0} onChange={e => setGlobalConfig({...globalConfig, welcomeBonus: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
             </div>
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">% Comissão Referência (Direta)</label>
-               <input type="number" value={globalConfig.referralBonus} onChange={e => setGlobalConfig({...globalConfig, referralBonus: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
+               <input type="number" value={globalConfig.referralBonus || 0} onChange={e => setGlobalConfig({...globalConfig, referralBonus: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
             </div>
             <div className="space-y-4">
                <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Taxa Administrativa Saque (%)</label>
-               <input type="number" value={globalConfig.mpesaFee} onChange={e => setGlobalConfig({...globalConfig, mpesaFee: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
+               <input type="number" value={globalConfig.mpesaFee || 0} onChange={e => setGlobalConfig({...globalConfig, mpesaFee: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white focus:border-accent" />
             </div>
             
             <div className="md:col-span-2 pt-6 border-t border-white/5 space-y-6">
@@ -1255,7 +1255,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                    type="text" 
                    placeholder="Pesquisar por Telemóvel ou Código..."
                    className="w-full bg-surface border border-border pl-12 pr-4 py-4 rounded-2xl text-white outline-none focus:border-accent"
-                   value={searchTerm}
+                   value={searchTerm || ''}
                    onChange={(e) => setSearchTerm(e.target.value)}
                  />
               </div>
@@ -1354,23 +1354,23 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Nome do VIP</label>
-                        <input type="text" placeholder="Ex: VIP 5" value={newVip.name} onChange={e => setNewVip({...newVip, name: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                        <input type="text" placeholder="Ex: VIP 5" value={newVip.name || ''} onChange={e => setNewVip({...newVip, name: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Preço (MT)</label>
-                        <input type="number" placeholder="65000" value={newVip.price} onChange={e => setNewVip({...newVip, price: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                        <input type="number" placeholder="65000" value={newVip.price || 0} onChange={e => setNewVip({...newVip, price: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Rendimento Diário (MT)</label>
-                        <input type="number" placeholder="5400" value={newVip.daily} onChange={e => setNewVip({...newVip, daily: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                        <input type="number" placeholder="5400" value={newVip.daily || 0} onChange={e => setNewVip({...newVip, daily: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Tarefas p/ Dia</label>
-                        <input type="number" value={newVip.tasks} onChange={e => setNewVip({...newVip, tasks: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                        <input type="number" value={newVip.tasks || 0} onChange={e => setNewVip({...newVip, tasks: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent" />
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block">Ícone</label>
-                        <select value={newVip.icon} onChange={e => setNewVip({...newVip, icon: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent">
+                        <select value={newVip.icon || 'zap'} onChange={e => setNewVip({...newVip, icon: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-accent">
                            <option value="zap">Raio (Básico)</option>
                            <option value="diamond">Diamante (Premium)</option>
                            <option value="crown">Coroa (Elite)</option>
@@ -1451,11 +1451,11 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary">Título do Vídeo</label>
-                        <input type="text" placeholder="Ex: Guia Investimento" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white" />
+                        <input type="text" placeholder="Ex: Guia Investimento" value={newTask.title || ''} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white" />
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary">Plataforma</label>
-                        <select value={newTask.platform} onChange={e => setNewTask({...newTask, platform: e.target.value as any})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white">
+                        <select value={newTask.platform || 'YouTube'} onChange={e => setNewTask({...newTask, platform: e.target.value as any})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white">
                            <option value="YouTube">YouTube</option>
                            <option value="TikTok">TikTok</option>
                            <option value="Facebook">Facebook</option>
@@ -1463,7 +1463,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                      </div>
                      <div className="space-y-4">
                         <label className="text-[9px] uppercase font-black text-text-secondary">Link do Iframe (Video URL)</label>
-                        <input type="text" placeholder="https://youtube.com/embed/..." value={newTask.videoUrl} onChange={e => setNewTask({...newTask, videoUrl: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white" />
+                        <input type="text" placeholder="https://youtube.com/embed/..." value={newTask.videoUrl || ''} onChange={e => setNewTask({...newTask, videoUrl: e.target.value})} className="w-full bg-black/20 border border-white/5 p-4 rounded-xl text-white" />
                      </div>
                      <div className="flex items-end">
                         <button 
@@ -1563,11 +1563,11 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                <div className="space-y-6">
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Saldo em Conta</label>
-                     <input type="number" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: parseInt(e.target.value) || 0})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" value={editForm.balance || 0} onChange={(e) => setEditForm({...editForm, balance: parseInt(e.target.value) || 0})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nível VIP</label>
-                     <select value={editForm.level} onChange={(e) => setEditForm({...editForm, level: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent">
+                     <select value={editForm.level || 'VIP 0'} onChange={(e) => setEditForm({...editForm, level: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent">
                         <option value="Membro Grátis">Membro Grátis</option>
                         {vipPlans.map(p => (
                           <option key={p.id} value={p.name}>{p.name}</option>
@@ -1576,7 +1576,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Tickets</label>
-                     <input type="number" value={editForm.tickets} onChange={(e) => setEditForm({...editForm, tickets: parseInt(e.target.value) || 0})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" value={editForm.tickets || 0} onChange={(e) => setEditForm({...editForm, tickets: parseInt(e.target.value) || 0})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div className="flex gap-4 pt-4">
                      <button onClick={() => setEditingUser(null)} className="flex-1 py-4 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[3px]">Cancelar</button>
@@ -1595,23 +1595,23 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Título do Banner</label>
-                     <input type="text" value={editingBanner.text} onChange={(e) => setEditingBanner({...editingBanner, text: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="text" value={editingBanner.text || ''} onChange={(e) => setEditingBanner({...editingBanner, text: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Subtítulo</label>
-                     <input type="text" value={editingBanner.sub} onChange={(e) => setEditingBanner({...editingBanner, sub: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="text" value={editingBanner.sub || ''} onChange={(e) => setEditingBanner({...editingBanner, sub: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Fundo (Gradient/Cor)</label>
-                     <input type="text" value={editingBanner.color} onChange={(e) => setEditingBanner({...editingBanner, color: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
+                     <input type="text" value={editingBanner.color || ''} onChange={(e) => setEditingBanner({...editingBanner, color: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Cor do Texto</label>
-                     <input type="text" value={editingBanner.textColor} onChange={(e) => setEditingBanner({...editingBanner, textColor: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
+                     <input type="text" value={editingBanner.textColor || ''} onChange={(e) => setEditingBanner({...editingBanner, textColor: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
                   </div>
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">URL da Imagem</label>
-                     <input type="text" value={editingBanner.imageUrl} onChange={(e) => setEditingBanner({...editingBanner, imageUrl: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
+                     <input type="text" value={editingBanner.imageUrl || ''} onChange={(e) => setEditingBanner({...editingBanner, imageUrl: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
                   </div>
                </div>
                <div className="flex gap-4">
@@ -1630,15 +1630,15 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nome do Prêmio</label>
-                     <input type="text" value={editingPrize.name} onChange={(e) => setEditingPrize({...editingPrize, name: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="text" value={editingPrize.name || ''} onChange={(e) => setEditingPrize({...editingPrize, name: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">URL da Imagem</label>
-                     <input type="text" value={editingPrize.image} onChange={(e) => setEditingPrize({...editingPrize, image: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
+                     <input type="text" value={editingPrize.image || ''} onChange={(e) => setEditingPrize({...editingPrize, image: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent font-mono text-xs" />
                   </div>
                   <div className="md:col-span-2">
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Descrição</label>
-                     <textarea value={editingPrize.desc} onChange={(e) => setEditingPrize({...editingPrize, desc: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent min-h-[120px] resize-none" />
+                     <textarea value={editingPrize.desc || ''} onChange={(e) => setEditingPrize({...editingPrize, desc: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent min-h-[120px] resize-none" />
                   </div>
                </div>
                <div className="flex gap-4">
@@ -1657,23 +1657,23 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Nome do VIP</label>
-                     <input type="text" value={editingVipPlan.name} onChange={(e) => setEditingVipPlan({...editingVipPlan, name: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="text" value={editingVipPlan.name || ''} onChange={(e) => setEditingVipPlan({...editingVipPlan, name: e.target.value})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Preço (MT)</label>
-                     <input type="number" value={editingVipPlan.price} onChange={(e) => setEditingVipPlan({...editingVipPlan, price: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" value={editingVipPlan.price || 0} onChange={(e) => setEditingVipPlan({...editingVipPlan, price: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Rendimento Diário (MT)</label>
-                     <input type="number" value={editingVipPlan.daily} onChange={(e) => setEditingVipPlan({...editingVipPlan, daily: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" value={editingVipPlan.daily || 0} onChange={(e) => setEditingVipPlan({...editingVipPlan, daily: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Tarefas Diárias</label>
-                     <input type="number" value={editingVipPlan.tasks} onChange={(e) => setEditingVipPlan({...editingVipPlan, tasks: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" value={editingVipPlan.tasks || 0} onChange={(e) => setEditingVipPlan({...editingVipPlan, tasks: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                   <div>
                      <label className="text-[9px] uppercase font-black text-text-secondary tracking-[2px] block mb-2">Dia de Saque (0=Dom, 1=Seg...)</label>
-                     <input type="number" min="0" max="6" value={editingVipPlan.withdrawalDay} onChange={(e) => setEditingVipPlan({...editingVipPlan, withdrawalDay: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
+                     <input type="number" min="0" max="6" value={editingVipPlan.withdrawalDay || 0} onChange={(e) => setEditingVipPlan({...editingVipPlan, withdrawalDay: parseInt(e.target.value)})} className="w-full bg-black/20 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-accent" />
                   </div>
                </div>
                <div className="flex gap-4">

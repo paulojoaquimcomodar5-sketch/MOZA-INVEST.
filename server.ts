@@ -71,7 +71,10 @@ async function startServer() {
     pendingOTPs: {} as Record<string, { code: string, expires: number, userData: any }>
   };
 
+  let firebaseEnabled = true;
+
   const syncToFirestore = async () => {
+    if (!firebaseEnabled) return;
     try {
       console.log("[FIREBASE] Syncing to Firestore database:", firebaseConfig.firestoreDatabaseId);
       // Sync messages
@@ -93,13 +96,17 @@ async function startServer() {
       });
       console.log("[FIREBASE] State synced successfully");
     } catch (e: any) {
+      if (e.message.includes('PERMISSION_DENIED') || e.code === 7) {
+        console.warn("[FIREBASE] Sync disabled: Permission denied (IAM issue). Using local storage.");
+        firebaseEnabled = false;
+        return;
+      }
       console.warn("[FIREBASE] Sync error:", e.message);
-      if (e.code) console.warn("[FIREBASE] Error code:", e.code);
-      if (e.details) console.warn("[FIREBASE] Error details:", e.details);
     }
   };
 
   const loadFromFirestore = async () => {
+    if (!firebaseEnabled) return;
     try {
       console.log("[FIREBASE] Loading from Firestore database:", firebaseConfig.firestoreDatabaseId);
       const msgSnap = await adminDb.collection('messages').orderBy('timestamp', 'desc').limit(50).get();
@@ -117,8 +124,11 @@ async function startServer() {
       }
       console.log("[FIREBASE] State loaded successfully");
     } catch (e: any) {
+      if (e.message.includes('PERMISSION_DENIED') || e.code === 7) {
+        firebaseEnabled = false;
+        return;
+      }
       console.warn("[FIREBASE] Load error:", e.message);
-      if (e.code) console.warn("[FIREBASE] Error code:", e.code);
     }
   };
 
@@ -416,9 +426,14 @@ async function startServer() {
 
     // Initial Data
     socket.emit("tasks_list", state.tasks || []);
+    socket.emit("messages_list", state.messages || []);
 
     socket.on("get_tasks", () => {
       socket.emit("tasks_list", state.tasks || []);
+    });
+
+    socket.on("get_messages", () => {
+      socket.emit("messages_list", state.messages || []);
     });
 
     socket.on("get_audit_logs", () => {

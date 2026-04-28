@@ -112,7 +112,7 @@ export default function ProfileView({ user, onLogout, onWithdraw, onNavigate, on
                 <label className="text-[8px] uppercase font-black text-text-secondary tracking-widest ml-1 mb-1 block">Nome Completo</label>
                 <input 
                   type="text" 
-                  value={newName}
+                  value={newName || ''}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Seu Nome"
                   className="w-full bg-bg border border-border p-3 rounded-lg text-xs text-white outline-none focus:border-accent"
@@ -124,7 +124,7 @@ export default function ProfileView({ user, onLogout, onWithdraw, onNavigate, on
                   <div className="relative flex-1">
                     <input 
                       type="text" 
-                      value={newPhotoUrl}
+                      value={newPhotoUrl || ''}
                       onChange={(e) => setNewPhotoUrl(e.target.value)}
                       placeholder="URL da imagem..."
                       className="w-full bg-bg border border-border p-3 pr-10 rounded-lg text-[9px] text-white outline-none focus:border-accent font-mono"

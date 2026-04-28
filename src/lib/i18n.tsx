@@ -115,7 +115,15 @@ export const translations: Record<Language, Record<string, string>> = {
     activate_investment_btn: 'ATIVAR INVESTIMENTO',
     fund_terms: 'Ao ativar, você concorda com os termos da MOZA INV.',
     mines: 'Minas',
-    select_language: 'Selecionar Idioma'
+    select_language: 'Selecionar Idioma',
+    how_to_earn: 'Guia do Investidor Moza',
+    step1: '💎 Escolha uma tarefa disponível no seu painel VIP.',
+    step2: '⏱️ Assista ao conteúdo até o fim para validar o engajamento.',
+    step3: '🚀 Receba o seu dividendo instantaneamente no saldo principal.',
+    step1_yt: 'Abra o canal oficial da MOZA no YouTube.',
+    step2_yt: 'Subscreva e ative as notificações para novidades.',
+    step3_yt: 'Tire um screenshot nítido da sua inscrição.',
+    step4_yt: 'Envie o ficheiro abaixo para auditoria do Administrador.',
   },
   en: {
     home: 'Home',
@@ -229,7 +237,15 @@ export const translations: Record<Language, Record<string, string>> = {
     activate_investment_btn: 'ACTIVATE INVESTMENT',
     fund_terms: 'By activating, you agree to MOZA INV terms.',
     mines: 'Mines',
-    select_language: 'Select Language'
+    select_language: 'Select Language',
+    how_to_earn: 'Moza Investor Guide',
+    step1: '💎 Choose an available task in your VIP panel.',
+    step2: '⏱️ Watch the content until the end to validate engagement.',
+    step3: '🚀 Receive your dividend instantly in your main balance.',
+    step1_yt: 'Open the official MOZA YouTube channel.',
+    step2_yt: 'Subscribe and turn on notifications for updates.',
+    step3_yt: 'Take a clear screenshot of your subscription.',
+    step4_yt: 'Upload the file below for Administrator audit.',
   },
   ts: {
     home: 'Masungulo',

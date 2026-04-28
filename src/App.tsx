@@ -54,10 +54,8 @@ import MinesGame from './components/MinesGame';
 import WelcomeModal from './components/WelcomeModal';
 import LoanView from './components/LoanView';
 import socket from './lib/socket';
-import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
+import { auth, signInAnonymously } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-
 import { useTranslation } from './lib/i18n';
 
 export default function App() {
@@ -296,6 +294,12 @@ export default function App() {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
+
+        // Ensure Firebase auth session
+        if (!auth.currentUser) {
+          signInAnonymously(auth).catch(err => console.error("Firebase auto-auth failed:", err));
+        }
+
         // Sync with backend immediately to get latest balance/level
         if (isSocketConnected) {
           socket.emit('validate_session', { phone: parsedUser.phone });
@@ -397,6 +401,12 @@ export default function App() {
     setIsAuthenticated(true);
     localStorage.setItem('moza_user', JSON.stringify(userData));
     setAuthError(null);
+    
+    // Sign in anonymously to Firebase to allow Firestore access
+    if (!auth.currentUser) {
+      signInAnonymously(auth).catch(err => console.error("Firebase auth failed:", err));
+    }
+
     if (appStatus.welcomeSettings?.active) {
       setShowWelcome(true);
     }
@@ -432,6 +442,7 @@ export default function App() {
     localStorage.removeItem('moza_user');
     setUser(null);
     setIsAuthenticated(false);
+    auth.signOut(); // Sign out of Firebase as well
     setIsAdminView(false);
     setActiveTab('home');
     setAuthForm({ phone: '', pass: '', invite: '' });

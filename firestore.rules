@@ -1,7 +1,8 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default Deny
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
@@ -9,18 +10,6 @@ service cloud.firestore {
     // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isValidId(id) {
@@ -35,99 +24,40 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // --- Entity Validations ---
-
-    function isValidUser(data) {
-      return data.keys().hasAll(['phone', 'name', 'balance', 'fundBalance', 'totalProfit', 'level', 'status', 'joinedAt']) &&
-             data.keys().size() >= 8 &&
-             data.phone is string && data.phone.size() <= 20 &&
-             data.name is string && data.name.size() <= 60 &&
-             data.balance is number &&
-             data.fundBalance is number &&
-             data.totalProfit is number &&
-             data.level is string && data.level.size() <= 50 &&
-             data.status in ['ACTIVE', 'SUSPENDED'];
-    }
-
-    function isValidMessage(data) {
-      return data.keys().hasAll(['user', 'text', 'time', 'isAdmin', 'timestamp']) &&
-             data.keys().size() == 5 &&
-             data.user is string && data.user.size() <= 50 &&
-             data.text is string && data.text.size() <= 1000 &&
-             data.isAdmin is bool &&
-             data.timestamp is number;
-    }
-
-    function isValidApproval(data) {
-      return data.keys().hasAll(['type', 'user', 'data', 'status', 'time']) &&
-             data.type is string && data.type.size() <= 50 &&
-             data.user is string && data.user.size() <= 128 &&
-             data.status in ['PENDING', 'APPROVED', 'REJECTED'];
-    }
-
-    function isValidWithdrawal(data) {
-      return data.keys().hasAll(['phone', 'amount', 'channel', 'account', 'status', 'time']) &&
-             data.phone is string && data.phone.size() <= 20 &&
-             data.amount is number && data.amount > 0 &&
-             data.channel is string && data.channel.size() <= 20 &&
-             data.account is string && data.account.size() <= 50 &&
-             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'];
+    function isAdmin() {
+      // For this app, we check if the user is in an 'admins' collection or has a specific UID
+      // Since it's a luxury app, we might have a hardcoded admin or look up
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // --- Collections ---
 
-    match /admins/{adminId} {
-      allow read: if isSignedIn();
-      allow write: if false; 
-    }
-
-    match /users/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isValidId(userId) && isOwner(userId) && isValidUser(incoming()) && incoming().balance == 0;
-      allow update: if isValidId(userId) && (isOwner(userId) || isAdmin()) && (
-        isAdmin() || 
-        (isValidUser(incoming()) && 
-         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'profileImage', 'password']) && 
-         incoming().balance == existing().balance &&
-         incoming().level == existing().level &&
-         incoming().phone == existing().phone)
-      );
-    }
-
     match /messages/{messageId} {
-      allow read: if true;
-      allow create: if isValidId(messageId) && isSignedIn() && isValidMessage(incoming()) && incoming().isAdmin == isAdmin();
-      allow delete: if isValidId(messageId) && isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+        && isValidId(messageId)
+        && isValidMessage(incoming())
+        && incoming().userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
-    match /approvals/{approvalId} {
-      allow get: if isSignedIn() && (existing().user == request.auth.uid || isAdmin());
-      allow list: if isAdmin() || (isSignedIn() && resource.data.user == request.auth.uid);
-      allow create: if isValidId(approvalId) && isSignedIn() && isValidApproval(incoming()) && incoming().user == request.auth.uid && incoming().status == 'PENDING';
-      allow update: if isValidId(approvalId) && isAdmin() && isValidApproval(incoming());
-    }
-
-    match /withdrawals/{withdrawalId} {
-       allow get: if isAdmin() || (isSignedIn() && existing().phone == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phone);
-       allow list: if isAdmin() || (isSignedIn() && resource.data.phone == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phone);
-       allow create: if isValidId(withdrawalId) && isSignedIn() && isValidWithdrawal(incoming()) && incoming().status == 'PENDING';
-       allow update: if isValidId(withdrawalId) && isAdmin() && isValidWithdrawal(incoming());
+    function isValidMessage(data) {
+      return data.keys().hasAll(['text', 'userId', 'userName', 'timestamp'])
+        && data.keys().size() >= 4
+        && data.text is string && data.text.size() <= 1000
+        && data.userId is string && data.userId.size() <= 128
+        && data.userName is string && data.userName.size() <= 100
+        && data.timestamp is number;
     }
 
     match /configs/{configId} {
-      allow read: if true;
+      allow read: if true; // App status might need to be read before login
       allow write: if isAdmin();
     }
-    
-    match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /vipPlans/{planId} {
-      allow read: if true;
-      allow write: if isAdmin();
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via Firebase Console or special script
     }
   }
 }

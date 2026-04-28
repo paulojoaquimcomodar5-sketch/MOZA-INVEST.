@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, User, ShieldCheck, Bot, Sparkles } from 'lucide-react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import socket from '../lib/socket';
 import { User as UserType } from '../types';
 import { askMozaAI } from '../services/geminiService';
@@ -30,19 +30,26 @@ export default function CommunityChatView({ user, onBack }: CommunityChatViewPro
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Listen to messages in real-time from Firestore
-    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'), limit(100));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Message[];
-      setMessages(msgs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'messages');
+    // Wait for auth to be ready
+    const unsubsAuth = auth.onAuthStateChanged((firebaseUser) => {
+      if (firebaseUser) {
+        // Listen to messages in real-time from Firestore
+        const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const msgs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Message[];
+          setMessages(msgs);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'messages');
+        });
+
+        return () => unsubscribe();
+      }
     });
 
-    return () => unsubscribe();
+    return () => unsubsAuth();
   }, []);
 
   useEffect(() => {
@@ -204,7 +211,7 @@ export default function CommunityChatView({ user, onBack }: CommunityChatViewPro
         <div className="relative flex-1">
           <input
             type="text"
-            value={inputText}
+            value={inputText || ''}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={isAiMode ? "Pergunte algo à IA Moza..." : "Escreva para a família..."}
             className={`w-full bg-bg border rounded-xl px-4 py-3 text-sm text-white outline-none transition-all ${
