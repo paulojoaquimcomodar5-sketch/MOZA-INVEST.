@@ -297,7 +297,13 @@ export default function App() {
 
         // Ensure Firebase auth session
         if (!auth.currentUser) {
-          signInAnonymously(auth).catch(err => console.error("Firebase auto-auth failed:", err));
+          signInAnonymously(auth).catch(err => {
+            if (err.code === "auth/admin-restricted-operation") {
+              console.warn("[FIREBASE] Anonymous Auth is disabled in the console. Community chat will be read-only.");
+            } else {
+              console.error("Firebase auto-auth failed:", err);
+            }
+          });
         }
 
         // Sync with backend immediately to get latest balance/level
@@ -404,7 +410,13 @@ export default function App() {
     
     // Sign in anonymously to Firebase to allow Firestore access
     if (!auth.currentUser) {
-      signInAnonymously(auth).catch(err => console.error("Firebase auth failed:", err));
+      signInAnonymously(auth).catch(err => {
+        if (err.code === "auth/admin-restricted-operation") {
+          console.warn("[FIREBASE] Anonymous Auth is disabled in the console. Some features may require login.");
+        } else {
+          console.error("Firebase auth failed:", err);
+        }
+      });
     }
 
     if (appStatus.welcomeSettings?.active) {
@@ -562,13 +574,16 @@ export default function App() {
                   </div>
                   <b className="text-white text-lg font-serif">+12.4%</b>
                </div>
-               <div className="bg-surface border border-border p-4 rounded-2xl">
+               <button 
+                 onClick={() => setActiveTab('security')}
+                 className="bg-surface border border-border p-4 rounded-2xl text-left hover:border-accent/40 hover:bg-accent/5 transition-all group"
+               >
                   <div className="flex items-center gap-2 mb-2">
-                     <ShieldCheck size={14} className="text-blue-400" />
-                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">{t('security')}</small>
+                     <ShieldCheck size={14} className="text-accent group-hover:scale-110 transition-transform" />
+                     <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">Nível de Proteção</small>
                   </div>
-                  <b className="text-white text-lg font-serif">SSL 256</b>
-               </div>
+                  <b className="text-white text-lg font-serif tracking-tighter">MOZA ENCLAVE</b>
+               </button>
             </div>
 
             {/* DAILY CHALLENGE BANNER */}
@@ -634,7 +649,7 @@ export default function App() {
           </>
         );
       case 'tasks':
-        return <InvestmentsView user={user} isMaintenance={maintenanceActive} vipPlans={vipPlans} />;
+        return <InvestmentsView user={user} isMaintenance={maintenanceActive} vipPlans={vipPlans} onNavigate={setActiveTab} />;
       case 'vip':
         return <VIPView user={user} onActivate={activateVIP} vipPlans={vipPlans} />;
       case 'team':
@@ -658,7 +673,7 @@ export default function App() {
       case 'loan':
         return <LoanView user={user} onBack={() => setActiveTab('home')} />;
       case 'security':
-        return <SecurityView onBack={() => setActiveTab('me')} />;
+        return <SecurityView user={user} onBack={() => setActiveTab('me')} />;
       case 'settings':
         return <SettingsView onBack={() => setActiveTab('me')} />;
       case 'me':
@@ -888,11 +903,29 @@ export default function App() {
                 </button>
               </p>
 
-              <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-3">
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                    <ShieldCheck size={10} className="text-emerald-500" />
-                    <span className="text-[7px] text-emerald-500 uppercase font-black tracking-widest">Protocolo Seguro SSL Ativo</span>
-                </div>
+              <div className="pt-8 border-t border-white/5 flex flex-col items-center gap-4">
+                <button 
+                  onClick={() => {
+                    setSuccessMsg("Auditando Rede Neural... Canal Seguro Estabelecido.");
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                  }}
+                  className="flex flex-col items-center gap-2 group cursor-pointer"
+                >
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-accent/5 rounded-full flex items-center justify-center border border-accent/10 group-hover:border-accent/40 transition-all">
+                        <Lock size={14} className="text-accent/60 group-hover:text-accent transition-colors" />
+                      </div>
+                      <motion.div 
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="absolute inset-0 bg-accent/10 blur-md rounded-full -z-10"
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[7px] text-accent uppercase font-black tracking-[4px] group-hover:text-white transition-colors">Elite Security Guard</p>
+                      <p className="text-[6px] text-text-secondary uppercase tracking-[2px] mt-0.5">Moza Quantum Network <span className="text-emerald-500">Active</span></p>
+                    </div>
+                </button>
               </div>
             </div>
           </motion.div>

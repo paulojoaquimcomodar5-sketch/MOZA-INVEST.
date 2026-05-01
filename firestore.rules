@@ -33,7 +33,7 @@ service cloud.firestore {
     // --- Collections ---
 
     match /messages/{messageId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Allow guests to see the community chat
       allow create: if isSignedIn() 
         && isValidId(messageId)
         && isValidMessage(incoming())

@@ -30,26 +30,24 @@ export default function CommunityChatView({ user, onBack }: CommunityChatViewPro
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Wait for auth to be ready
-    const unsubsAuth = auth.onAuthStateChanged((firebaseUser) => {
-      if (firebaseUser) {
-        // Listen to messages in real-time from Firestore
-        const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'), limit(100));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const msgs = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Message[];
-          setMessages(msgs);
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'messages');
-        });
-
-        return () => unsubscribe();
+    // Listen to messages in real-time from Firestore - Subscribe immediately for public read
+    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'), limit(100));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Message[];
+      setMessages(msgs);
+    }, (error) => {
+      // Silent warning for public read permission issues if not authenticated
+      if (!auth.currentUser && error.message.includes('permission')) {
+        console.warn("[FIREBASE] Public read access failed. Check your security rules.");
+      } else {
+        handleFirestoreError(error, OperationType.LIST, 'messages');
       }
     });
 
-    return () => unsubsAuth();
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

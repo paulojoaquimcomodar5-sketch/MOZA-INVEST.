@@ -10,16 +10,18 @@ interface InvestmentsViewProps {
   user: UserType | null;
   isMaintenance?: boolean;
   vipPlans?: any[];
+  onNavigate?: (tab: any) => void;
 }
 
 const DEFAULT_TASKS: TaskType[] = [
   { id: 'yt_moza_main', title: 'MOZA INVEST: Estratégias de Lucro 2026', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/zIwLWfaAg-8', duration: 15 },
   { id: 'yt_moza_update', title: 'Novas Atualizações VIP - Família Moza', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/Py_o_h6c5uU', duration: 15 },
+  { id: 'security_activation', title: 'MOZA ENCLAVE: Ativar Proteção de Elite', platform: 'YouTube', reward: 20, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 5 },
   { id: 'yt_moza_tutorial', title: 'Como Ativar VIP e Sacar Rendimentos', platform: 'YouTube', reward: 0, videoUrl: 'https://www.youtube.com/embed/1G4isv_Fylg', duration: 10 },
   { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
 ];
 
-export default function InvestmentsView({ user, isMaintenance, vipPlans = [] }: InvestmentsViewProps) {
+export default function InvestmentsView({ user, isMaintenance, vipPlans = [], onNavigate }: InvestmentsViewProps) {
   const { t } = useTranslation();
   const [activeTask, setActiveTask] = useState<TaskType | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -109,6 +111,11 @@ export default function InvestmentsView({ user, isMaintenance, vipPlans = [] }: 
       }
       return;
     }
+    if (task.id === 'security_activation' && onNavigate) {
+      onNavigate('security');
+      return;
+    }
+
     if (completedTasks.includes(task.id)) return;
     
     setActiveTask(task);

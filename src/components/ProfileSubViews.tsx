@@ -4,8 +4,11 @@ import { ArrowLeft, History, Wallet, Shield, Settings, Info, CheckCircle2, Termi
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { useTranslation, Language } from '../lib/i18n';
 
+import socket from '../lib/socket';
+
 interface SubViewProps {
   onBack: () => void;
+  user?: any;
 }
 
 const HISTORICAL_DATA = [
@@ -291,8 +294,27 @@ export function WithdrawalHistoryView({ onBack }: SubViewProps) {
   );
 }
 
-export function SecurityView({ onBack }: SubViewProps) {
+export function SecurityView({ onBack, user }: SubViewProps) {
   const [activeStep, setActiveStep] = useState<'list' | 'password' | 'pin' | '2fa'>('list');
+  const [isMozaGuardActive, setIsMozaGuardActive] = useState(() => {
+    return localStorage.getItem(`moza_guard_${user?.phone}`) === 'true';
+  });
+  const { t } = useTranslation();
+
+  const handleActivateGuard = () => {
+    setIsMozaGuardActive(true);
+    localStorage.setItem(`moza_guard_${user?.phone}`, 'true');
+    
+    // Emit task completion for security activation
+    socket.emit('task_completed', {
+      user: user?.phone,
+      taskId: 'security_activation',
+      reward: 20, // Give MZN 20 as reward for securing account
+      platform: 'YouTube' // Use a default platform or add 'Security' if supported
+    });
+    
+    alert("MOZA GUARD ATIVADO: Sua conta está agora sob proteção de nível Enclave. +MZN 20 creditados.");
+  };
 
   const renderContent = () => {
     switch (activeStep) {
@@ -356,21 +378,61 @@ export function SecurityView({ onBack }: SubViewProps) {
         );
       default:
         return (
-          <div className="space-y-4">
-            {[
-              { id: 'password', label: 'Alterar Senha de Login', Icon: Shield },
-              { id: 'pin', label: 'Senha de Transação', Icon: Lock },
-              { id: '2fa', label: 'Autenticação 2FA', Icon: Smartphone },
-            ].map(item => (
-              <button 
-                key={item.id} 
-                onClick={() => setActiveStep(item.id as any)}
-                className="w-full bg-surface border border-border p-5 rounded-xl flex items-center gap-4 group hover:border-accent/40 transition-all"
-              >
-                <div className="text-accent"><item.Icon size={20} /></div>
-                <span className="text-text-secondary text-xs uppercase tracking-widest font-bold group-hover:text-white">{item.label}</span>
-              </button>
-            ))}
+          <div className="space-y-6">
+            {/* Elite Status Badge */}
+            <div className={`border transition-all duration-500 p-6 rounded-2xl relative overflow-hidden group ${isMozaGuardActive ? 'bg-linear-to-r from-emerald-500/10 to-transparent border-emerald-500/20' : 'bg-linear-to-r from-accent/10 to-transparent border-accent/20'}`}>
+               <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:rotate-12 transition-transform">
+                  <Shield size={64} className={isMozaGuardActive ? 'text-emerald-500' : 'text-accent'} />
+               </div>
+               <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                     <div className={`w-2 h-2 rounded-full ${isMozaGuardActive ? 'bg-emerald-500 animate-pulse' : 'bg-accent/40'}`} />
+                     <span className={`text-[9px] uppercase font-black tracking-[3px] ${isMozaGuardActive ? 'text-emerald-400' : 'text-accent/60'}`}>
+                       {isMozaGuardActive ? 'Sistema Moza Guard Ativo' : 'Proteção Elite Disponível'}
+                     </span>
+                  </div>
+                  <h4 className="text-white font-serif text-xl italic mb-1">Moza Enclave</h4>
+                  
+                  {isMozaGuardActive ? (
+                    <motion.p 
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-text-secondary text-[9px] uppercase tracking-widest leading-loose"
+                    >
+                       Encriptação Neural 512-bit Ativada<br/>
+                       Monitoramento em Tempo Real contra Intrusos<br/>
+                       IP Privado Certificado para Moçambique
+                    </motion.p>
+                  ) : (
+                    <div className="mt-4">
+                      <p className="text-text-secondary text-[8px] uppercase tracking-widest mb-4">Ative a proteção máxima para seus levantamentos e dados pessoais.</p>
+                      <button 
+                        onClick={handleActivateGuard}
+                        className="bg-accent text-bg px-6 py-2 rounded-lg text-[9px] uppercase font-black tracking-[2px] hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+                      >
+                        Ativar Agora
+                      </button>
+                    </div>
+                  )}
+               </div>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { id: 'password', label: 'Alterar Senha de Login', Icon: Shield },
+                { id: 'pin', label: 'Senha de Transação', Icon: Lock },
+                { id: '2fa', label: 'Autenticação 2FA', Icon: Smartphone },
+              ].map(item => (
+                <button 
+                  key={item.id} 
+                  onClick={() => setActiveStep(item.id as any)}
+                  className="w-full bg-surface border border-border p-5 rounded-xl flex items-center gap-4 group hover:border-accent/40 transition-all font-sans"
+                >
+                  <div className="text-accent/60 group-hover:text-accent transition-colors"><item.Icon size={18} /></div>
+                  <span className="text-text-secondary text-[10px] uppercase tracking-widest font-black group-hover:text-white">{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         );
     }
