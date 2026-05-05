@@ -54,7 +54,7 @@ import MinesGame from './components/MinesGame';
 import WelcomeModal from './components/WelcomeModal';
 import LoanView from './components/LoanView';
 import socket from './lib/socket';
-import { auth, signInAnonymously } from './lib/firebase';
+import { auth, signInAnonymously, signInWithEmailAndPassword } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useTranslation } from './lib/i18n';
 
@@ -69,8 +69,9 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [activatedPlanName, setActivatedPlanName] = useState('');
   const [activatingPlan, setActivatingPlan] = useState<VIPPlan | null>(null);
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [authForm, setAuthForm] = useState({ phone: '', pass: '', invite: '' });
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER' | 'FORGOT'>('LOGIN');
+  const [resetStep, setResetStep] = useState(1); // 1: phone, 2: otp, 3: new pass
+  const [authForm, setAuthForm] = useState({ phone: '', pass: '', invite: '', name: '', otp: '', newPass: '' });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState(false);
@@ -87,7 +88,19 @@ export default function App() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
+        console.log("[INIT] Fetching initial data from /api/initial-data");
         const response = await fetch('/api/initial-data');
+        if (!response.ok) {
+          console.error("[INIT] Server responded with status:", response.status);
+          throw new Error(`Server response not OK: ${response.status}`);
+        }
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           const body = await response.text();
+           console.error("[INIT] Non-JSON response:", body.slice(0, 200));
+           throw new Error("Not a JSON response");
+        }
+        
         const data = await response.json();
         setFunds(data.funds || []);
         setVipPlans(data.vipPlans || []);
@@ -217,7 +230,7 @@ export default function App() {
       setIsAuthLoading(false);
       if (res.success) {
         alert(t('welcome_msg'));
-        setIsRegisterMode(false);
+        setAuthMode('LOGIN');
         setAuthError(null);
       } else {
         setAuthError(res.message);
@@ -319,39 +332,125 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const normalizePhone = (p: string) => {
+    let digits = (p || '').toString().replace(/\D/g, '');
+    if (digits.length >= 12 && digits.startsWith('258')) digits = digits.slice(3);
+    return digits;
+  };
+
   const handleAuth = async () => {
     setAuthError(null);
     const isSpecialAdmin = authForm.phone.toLowerCase() === 'admin';
-    const sanitizedPhone = isSpecialAdmin ? 'admin' : authForm.phone.replace(/\D/g, '');
+    const normalizedPhone = isSpecialAdmin ? 'admin' : normalizePhone(authForm.phone);
+    const sanitizedPhone = normalizedPhone;
     
-    if (!isSpecialAdmin && (sanitizedPhone.length < 3)) {
+    if (authMode !== 'FORGOT' && !isSpecialAdmin && (normalizedPhone.length < 3)) {
       triggerShake();
       return setAuthError(t('auth_error_phone'));
     }
-    if (authForm.pass.length < 4) {
+
+    if (authMode === 'REGISTER' && authForm.pass.length < 6) {
+      triggerShake();
+      return setAuthError("A palavra-passe para o registo deve ter pelo menos 6 caracteres.");
+    }
+    
+    if (authMode === 'LOGIN' && authForm.pass.length < 1) {
       triggerShake();
       return setAuthError(t('auth_error_pass'));
     }
     
     setIsAuthLoading(true);
+    setAuthError(null);
 
     try {
-      const response = await (isRegisterMode 
+      if (authMode === 'FORGOT') {
+        if (resetStep === 1) {
+          const response = await fetch('/api/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: sanitizedPhone })
+          });
+          
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            setIsAuthLoading(false);
+            return setAuthError(data.message || "Erro no servidor ao solicitar código.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            setResetStep(2);
+            setSuccessMsg("Código de redefinição enviado!");
+          } else {
+            setAuthError(data.message);
+          }
+        } else if (resetStep === 2) {
+          if (authForm.otp.length < 6) {
+            setIsAuthLoading(false);
+            return setAuthError("Código inválido.");
+          }
+          setResetStep(3);
+        } else if (resetStep === 3) {
+          if (authForm.newPass.length < 6) {
+            setIsAuthLoading(false);
+            return setAuthError("A nova senha deve ter no mínimo 6 caracteres.");
+          }
+          const response = await fetch('/api/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: sanitizedPhone, code: authForm.otp, newPassword: authForm.newPass })
+          });
+
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            setIsAuthLoading(false);
+            return setAuthError(data.message || "Falha ao redefinir senha.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            setSuccessMsg("Senha alterada com sucesso! Faça login.");
+            setAuthMode('LOGIN');
+            setResetStep(1);
+          } else {
+            setAuthError(data.message);
+          }
+        }
+        setIsAuthLoading(false);
+        return;
+      }
+
+      // Step 1: Firebase Authentication (if not registering)
+      let fbAuthenticated = false;
+      const canTryFirebaseAuth = authMode === 'LOGIN' && !isSpecialAdmin && authForm.pass.length >= 6;
+      
+      if (canTryFirebaseAuth) {
+        try {
+          const email = `${normalizedPhone}@moza.com`;
+          await signInWithEmailAndPassword(auth, email, authForm.pass);
+          console.log("[FIREBASE] Client authenticated successfully:", email);
+          fbAuthenticated = true;
+        } catch (fbError: any) {
+          console.warn("[FIREBASE] Auth failed (will attempt anonymous fallback later):", fbError.code);
+        }
+      }
+
+      const response = await (authMode === 'REGISTER' 
         ? fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              phone: sanitizedPhone, 
+              phone: normalizedPhone, 
               password: authForm.pass, 
               inviteCode: authForm.invite,
-              name: `Investidor ${sanitizedPhone.slice(-3)}`
+              name: `Investidor ${normalizedPhone.slice(-3)}`
             })
           })
         : fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              phone: sanitizedPhone, 
+              phone: normalizedPhone, 
               password: authForm.pass 
             })
           })
@@ -382,9 +481,9 @@ export default function App() {
       setIsAuthLoading(false);
 
       if (res.success) {
-        if (isRegisterMode) {
+        if (authMode === 'REGISTER') {
           alert(t('welcome_msg'));
-          setIsRegisterMode(false);
+          setAuthMode('LOGIN');
           setAuthError(null);
         } else {
           completeLogin(res.user);
@@ -408,27 +507,41 @@ export default function App() {
     localStorage.setItem('moza_user', JSON.stringify(userData));
     setAuthError(null);
     
-    // Sign in anonymously to Firebase to allow Firestore access
+    // Ensure socket is synced
+    if (!socket.connected) socket.connect();
+    socket.emit('validate_session', { phone: userData.phone });
+
+    // Ensure Firebase session
     if (!auth.currentUser) {
-      signInAnonymously(auth).catch(err => {
-        if (err.code === "auth/admin-restricted-operation") {
-          console.warn("[FIREBASE] Anonymous Auth is disabled in the console. Some features may require login.");
-        } else {
-          console.error("Firebase auth failed:", err);
-        }
-      });
+      signInAnonymously(auth).catch(err => console.warn("[FIREBASE] Sessão convidada falhou:", err.code));
     }
 
     if (appStatus.welcomeSettings?.active) {
       setShowWelcome(true);
     }
-    if (!socket.connected) socket.connect();
   };
 
   const activateVIP = (plan: VIPPlan) => {
-    if (!user) return;
-    if (user.level === plan.name) return alert(t('vip_already_active'));
+    if (!user) {
+      alert("Por favor, faça login para continuar.");
+      return;
+    }
     
+    if (user.level === plan.name) {
+      alert("Este plano VIP já está ativo na sua conta.");
+      return;
+    }
+
+    // Direct activation if balance is sufficient
+    if (user.balance >= plan.price) {
+      if (window.confirm(`${t('confirm_activation') || 'Deseja ativar'} ${plan.name} por MZN ${plan.price}? O valor será deduzido do seu saldo.`)) {
+        socket.emit('activate_vip', { phone: user.phone, planId: plan.id });
+        setSuccessMsg(`Ativando ${plan.name}...`);
+        return;
+      }
+    }
+    
+    // Otherwise show payment modal for recharge
     setActivatingPlan(plan);
     setShowPayment(true);
   };
@@ -461,13 +574,14 @@ export default function App() {
   };
 
   const handlePaymentConfirm = (file: File | null, amount: number, type?: 'PAYMENT' | 'VIP_UPGRADE') => {
-    if (file && user) {
-      if (amount <= 0) return alert(t('valid_amount'));
+    if (user) {
+      if (amount <= 0 && type !== 'VIP_UPGRADE') return alert(t('valid_amount'));
+      
       socket.emit('submit_for_approval', {
         type: type || 'PAYMENT',
         user: user.phone,
         data: { 
-          fileName: file.name, 
+          fileName: file?.name || 'Comprovativo Digital', 
           amount: amount, 
           planName: activatingPlan?.name,
           planId: activatingPlan?.id 
@@ -475,15 +589,13 @@ export default function App() {
       });
       
       if (type === 'VIP_UPGRADE') {
-        alert(t('activation_sent', { plan: activatingPlan?.name || 'VIP' }));
+        alert("SOLICITAÇÃO ENVIADA: O seu upgrade " + (activatingPlan?.name || 'VIP') + " será processado em breve.");
       } else {
         alert(t('payment_received'));
       }
       
       setShowPayment(false);
       setActivatingPlan(null);
-    } else {
-      alert(t('select_proof'));
     }
   };
 
@@ -582,7 +694,7 @@ export default function App() {
                      <ShieldCheck size={14} className="text-accent group-hover:scale-110 transition-transform" />
                      <small className="text-[8px] uppercase font-black tracking-widest text-text-secondary">Nível de Proteção</small>
                   </div>
-                  <b className="text-white text-lg font-serif tracking-tighter">MOZA ENCLAVE</b>
+                  <b className="text-white text-lg font-serif tracking-tighter">MOZA SSL</b>
                </button>
             </div>
 
@@ -715,14 +827,14 @@ export default function App() {
          
          <div className="space-y-4 w-full max-w-xs">
             <button 
-              onClick={() => setIsRegisterMode(!isRegisterMode)}
+              onClick={() => setAuthMode('REGISTER')}
               className="text-[10px] uppercase font-black tracking-widest text-white/20 hover:text-accent transition-colors"
             >
               {t('i_am_admin')}
             </button>
          </div>
 
-         {!isAuthenticated && isRegisterMode && (
+         {!isAuthenticated && authMode === 'REGISTER' && (
             <div className="mt-8 p-6 bg-surface rounded-2xl border border-border w-full max-w-sm animate-fade shadow-2xl">
                <div className="flex items-center gap-3 mb-6">
                   <div className="w-8 h-8 bg-accent/20 rounded-lg flex items-center justify-center text-accent">
@@ -794,68 +906,160 @@ export default function App() {
             </div>
             
             <div className="space-y-5">
-              <div className="relative group">
-                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
-                <div className="flex bg-bg border border-border rounded-lg overflow-hidden focus-within:border-accent transition-all pl-10">
-                  <div className="bg-white/5 px-2 flex items-center border-r border-border text-text-secondary text-[10px] font-black tracking-tighter">
-                    +258
-                  </div>
-                  <input 
-                    type="tel" 
-                    placeholder="84 123 4567"
-                    className="w-full bg-transparent py-3 px-4 text-white outline-none text-sm placeholder:opacity-30"
-                   value={authForm.phone || ''}
-                    onChange={(e) => {
-                      setAuthForm({ ...authForm, phone: e.target.value });
-                      if(authError) setAuthError(null);
-                    }}
-                  />
-                </div>
-              </div>
-              
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder={t('password')}
-                  className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                  value={authForm.pass || ''}
-                  onChange={(e) => {
-                    setAuthForm({ ...authForm, pass: e.target.value });
-                    if(authError) setAuthError(null);
-                  }}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-accent transition-colors"
+              <div className="flex bg-white/5 p-1 rounded-xl mb-2">
+                <button
+                  onClick={() => { setAuthMode('LOGIN'); setAuthError(null); }}
+                  className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${authMode === 'LOGIN' ? 'bg-accent text-bg shadow-lg' : 'text-text-secondary'}`}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {t('login')}
+                </button>
+                <button
+                  onClick={() => { setAuthMode('REGISTER'); setAuthError(null); }}
+                  className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${authMode === 'REGISTER' ? 'bg-accent text-bg shadow-lg' : 'text-text-secondary'}`}
+                >
+                  {t('register')}
                 </button>
               </div>
 
-              {isRegisterMode && (
-                <div className="relative">
-                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder={t('invite_code')}
-                    className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
-                    value={authForm.invite || ''}
-                    onChange={(e) => {
-                      setAuthForm({ ...authForm, invite: e.target.value });
-                      if(authError) setAuthError(null);
-                    }}
-                  />
-                </div>
-              )}
+              {authMode === 'FORGOT' ? (
+                <div id="forgot-password-form" className="space-y-4">
+                  <h2 className="text-sm font-black text-white uppercase tracking-[2px] text-center mb-2">Recuperar Conta</h2>
+                  {resetStep === 1 && (
+                    <div className="space-y-4">
+                      <p className="text-[10px] text-text-secondary text-center uppercase tracking-wider">Introduza o seu número para receber um código.</p>
+                      <div className="relative group">
+                        <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
+                        <div className="flex bg-bg border border-border rounded-lg overflow-hidden focus-within:border-accent transition-all pl-10">
+                          <input
+                            type="tel"
+                            placeholder="Telefone (+258)"
+                            value={authForm.phone}
+                            onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })}
+                            className="w-full bg-transparent py-3 px-4 text-white outline-none text-sm placeholder:opacity-30"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {resetStep === 2 && (
+                    <div className="space-y-4">
+                      <p className="text-[10px] text-text-secondary text-center uppercase tracking-wider">Enviamos um código de 6 dígitos.</p>
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
+                        <input
+                          type="text"
+                          placeholder="CÓDIGO OTP"
+                          value={authForm.otp}
+                          maxLength={6}
+                          onChange={(e) => setAuthForm({ ...authForm, otp: e.target.value })}
+                          className="w-full bg-bg border border-border py-4 px-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-center tracking-[8px] text-lg font-black"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {resetStep === 3 && (
+                    <div className="space-y-4">
+                      <p className="text-[10px] text-text-secondary text-center uppercase tracking-wider">Defina a nova palavra-passe.</p>
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="NOVA SENHA (MÍN 6)"
+                          value={authForm.newPass}
+                          onChange={(e) => setAuthForm({ ...authForm, newPass: e.target.value })}
+                          className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                        />
+                        <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary">
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleAuth}
+                    disabled={isAuthLoading}
+                    className="w-full bg-accent text-bg font-black py-4 rounded-xl active:scale-95 transition-all text-[10px] uppercase tracking-[3px]"
+                  >
+                    {isAuthLoading ? "A PROCESSAR..." : "CONTINUAR"}
+                  </button>
 
-              {!isRegisterMode && (
-                <div className="flex items-center justify-between px-1">
-                  <button className="text-[9px] text-accent font-black uppercase tracking-widest hover:underline">
-                      {t('forgot_password')}
+                  <button
+                    onClick={() => { setAuthMode('LOGIN'); setResetStep(1); }}
+                    className="w-full py-2 text-[9px] text-text-secondary hover:text-white uppercase tracking-widest"
+                  >
+                    Voltar ao login
                   </button>
                 </div>
+              ) : (
+                <>
+                  <div className="relative group">
+                    <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors" size={16} />
+                    <div className="flex bg-bg border border-border rounded-lg overflow-hidden focus-within:border-accent transition-all pl-10">
+                      <div className="bg-white/5 px-2 flex items-center border-r border-border text-text-secondary text-[10px] font-black tracking-tighter">
+                        +258
+                      </div>
+                      <input 
+                        type="tel" 
+                        placeholder="84 123 4567"
+                        className="w-full bg-transparent py-3 px-4 text-white outline-none text-sm placeholder:opacity-30"
+                      value={authForm.phone || ''}
+                        onChange={(e) => {
+                          setAuthForm({ ...authForm, phone: e.target.value });
+                          if(authError) setAuthError(null);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder={t('password')}
+                      className="w-full bg-bg border border-border py-3 pl-10 pr-12 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                      value={authForm.pass || ''}
+                      onChange={(e) => {
+                        setAuthForm({ ...authForm, pass: e.target.value });
+                        if(authError) setAuthError(null);
+                      }}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-accent transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  {authMode === 'REGISTER' && (
+                    <div className="relative">
+                      <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+                      <input 
+                        type="text" 
+                        placeholder={t('invite_code')}
+                        className="w-full bg-bg border border-border py-3 pl-10 pr-4 rounded-lg text-white outline-none focus:border-accent transition-colors text-sm"
+                        value={authForm.invite || ''}
+                        onChange={(e) => {
+                          setAuthForm({ ...authForm, invite: e.target.value });
+                          if(authError) setAuthError(null);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {authMode === 'LOGIN' && (
+                    <div className="flex items-center justify-between px-1">
+                      <button 
+                         onClick={() => { setAuthMode('FORGOT'); setResetStep(1); setAuthError(null); }}
+                         className="text-[9px] text-accent font-black uppercase tracking-widest hover:underline"
+                      >
+                          {t('forgot_password')}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               <AnimatePresence>
@@ -885,21 +1089,21 @@ export default function App() {
                 ) : (
                   !isOnline 
                     ? 'INTERNET NECESSÁRIA' 
-                    : (isRegisterMode ? t('register').toUpperCase() : t('login').toUpperCase())
+                    : (authMode === 'REGISTER' ? t('register').toUpperCase() : t('login').toUpperCase())
                 )}
               </button>
 
               <p className="text-[10px] uppercase tracking-wider text-text-secondary mt-8 font-bold">
-                {isRegisterMode ? 'Já possui acesso? ' : 'Não possui acesso? '}
+                {authMode === 'REGISTER' ? 'Já possui acesso? ' : 'Não possui acesso? '}
                 <button 
                   onClick={() => {
-                    setIsRegisterMode(!isRegisterMode);
+                    setAuthMode(authMode === 'REGISTER' ? 'LOGIN' : 'REGISTER');
                     setAuthError(null);
                     setSuccessMsg(null);
                   }}
                   className="text-accent font-black hover:underline"
                 >
-                  {isRegisterMode ? t('login') : t('register')}
+                  {authMode === 'REGISTER' ? t('login') : t('register')}
                 </button>
               </p>
 
@@ -922,8 +1126,8 @@ export default function App() {
                       />
                     </div>
                     <div className="text-center">
-                      <p className="text-[7px] text-accent uppercase font-black tracking-[4px] group-hover:text-white transition-colors">Elite Security Guard</p>
-                      <p className="text-[6px] text-text-secondary uppercase tracking-[2px] mt-0.5">Moza Quantum Network <span className="text-emerald-500">Active</span></p>
+                      <p className="text-[7px] text-accent uppercase font-black tracking-[4px] group-hover:text-white transition-colors">SSL SECURITY SHIELD</p>
+                      <p className="text-[6px] text-text-secondary uppercase tracking-[2px] mt-0.5">Moza Global Network <span className="text-emerald-500">Secure</span></p>
                     </div>
                 </button>
               </div>

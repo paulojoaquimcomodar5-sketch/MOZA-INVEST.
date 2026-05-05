@@ -94,14 +94,16 @@ export default function InvestmentsView({ user, isMaintenance, vipPlans = [], on
       return;
     }
 
-    const isSunday = new Date().getDay() === 0;
-    // Allow performing tasks even on Sunday for better user experience/testing
-    /*
-    if (isSunday) {
-      alert(t('sunday_restriction'));
+    const isSecurityActive = user?.phone ? localStorage.getItem(`ssl_protection_${user.phone}`) === 'true' : false;
+
+    if (task.id === 'security_activation') {
+      if (isSecurityActive) {
+        alert("MOZA SSL: A sua proteção já está ativa.");
+        return;
+      }
+      if (onNavigate) onNavigate('security');
       return;
     }
-    */
 
     if (completedTasks.length >= dailyTarget) {
       if (dailyTarget === 0 || user?.level === 'Membro Grátis') {
@@ -109,10 +111,6 @@ export default function InvestmentsView({ user, isMaintenance, vipPlans = [], on
       } else {
         alert(t('daily_limit_reached', { target: dailyTarget }));
       }
-      return;
-    }
-    if (task.id === 'security_activation' && onNavigate) {
-      onNavigate('security');
       return;
     }
 

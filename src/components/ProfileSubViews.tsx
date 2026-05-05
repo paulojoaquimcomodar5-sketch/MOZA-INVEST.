@@ -296,24 +296,15 @@ export function WithdrawalHistoryView({ onBack }: SubViewProps) {
 
 export function SecurityView({ onBack, user }: SubViewProps) {
   const [activeStep, setActiveStep] = useState<'list' | 'password' | 'pin' | '2fa'>('list');
-  const [isMozaGuardActive, setIsMozaGuardActive] = useState(() => {
-    return localStorage.getItem(`moza_guard_${user?.phone}`) === 'true';
+  const [isMozaSSLActive, setIsMozaSSLActive] = useState(() => {
+    return localStorage.getItem(`ssl_protection_${user?.phone}`) === 'true';
   });
   const { t } = useTranslation();
 
-  const handleActivateGuard = () => {
-    setIsMozaGuardActive(true);
-    localStorage.setItem(`moza_guard_${user?.phone}`, 'true');
-    
-    // Emit task completion for security activation
-    socket.emit('task_completed', {
-      user: user?.phone,
-      taskId: 'security_activation',
-      reward: 20, // Give MZN 20 as reward for securing account
-      platform: 'YouTube' // Use a default platform or add 'Security' if supported
-    });
-    
-    alert("MOZA GUARD ATIVADO: Sua conta está agora sob proteção de nível Enclave. +MZN 20 creditados.");
+  const handleActivateSSL = () => {
+    setIsMozaSSLActive(true);
+    localStorage.setItem(`ssl_protection_${user?.phone}`, 'true');
+    alert("SSL ATIVADO: Sua conta está agora protegida com encriptação SSL.");
   };
 
   const renderContent = () => {
@@ -380,37 +371,37 @@ export function SecurityView({ onBack, user }: SubViewProps) {
         return (
           <div className="space-y-6">
             {/* Elite Status Badge */}
-            <div className={`border transition-all duration-500 p-6 rounded-2xl relative overflow-hidden group ${isMozaGuardActive ? 'bg-linear-to-r from-emerald-500/10 to-transparent border-emerald-500/20' : 'bg-linear-to-r from-accent/10 to-transparent border-accent/20'}`}>
+            <div className={`border transition-all duration-500 p-6 rounded-2xl relative overflow-hidden group ${isMozaSSLActive ? 'bg-linear-to-r from-emerald-500/10 to-transparent border-emerald-500/20' : 'bg-linear-to-r from-accent/10 to-transparent border-accent/20'}`}>
                <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:rotate-12 transition-transform">
-                  <Shield size={64} className={isMozaGuardActive ? 'text-emerald-500' : 'text-accent'} />
+                  <Shield size={64} className={isMozaSSLActive ? 'text-emerald-500' : 'text-accent'} />
                </div>
                <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-3">
-                     <div className={`w-2 h-2 rounded-full ${isMozaGuardActive ? 'bg-emerald-500 animate-pulse' : 'bg-accent/40'}`} />
-                     <span className={`text-[9px] uppercase font-black tracking-[3px] ${isMozaGuardActive ? 'text-emerald-400' : 'text-accent/60'}`}>
-                       {isMozaGuardActive ? 'Sistema Moza Guard Ativo' : 'Proteção Elite Disponível'}
+                     <div className={`w-2 h-2 rounded-full ${isMozaSSLActive ? 'bg-emerald-500 animate-pulse' : 'bg-accent/40'}`} />
+                     <span className={`text-[9px] uppercase font-black tracking-[3px] ${isMozaSSLActive ? 'text-emerald-400' : 'text-accent/60'}`}>
+                       {isMozaSSLActive ? 'Sistema SSL Ativo' : 'Proteção Adicional Disponível'}
                      </span>
                   </div>
-                  <h4 className="text-white font-serif text-xl italic mb-1">Moza Enclave</h4>
+                  <h4 className="text-white font-serif text-xl italic mb-1">Moza SSL Shield</h4>
                   
-                  {isMozaGuardActive ? (
+                  {isMozaSSLActive ? (
                     <motion.p 
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-text-secondary text-[9px] uppercase tracking-widest leading-loose"
                     >
-                       Encriptação Neural 512-bit Ativada<br/>
-                       Monitoramento em Tempo Real contra Intrusos<br/>
-                       IP Privado Certificado para Moçambique
+                       Encriptação SSL 256-bit Ativada<br/>
+                       Proteção de Retirada Verificada<br/>
+                       Conexão Segura Estabelecida
                     </motion.p>
                   ) : (
                     <div className="mt-4">
-                      <p className="text-text-secondary text-[8px] uppercase tracking-widest mb-4">Ative a proteção máxima para seus levantamentos e dados pessoais.</p>
+                      <p className="text-text-secondary text-[8px] uppercase tracking-widest mb-4">Ative a proteção SSL para garantir a segurança dos seus dados e rendimentos.</p>
                       <button 
-                        onClick={handleActivateGuard}
+                        onClick={handleActivateSSL}
                         className="bg-accent text-bg px-6 py-2 rounded-lg text-[9px] uppercase font-black tracking-[2px] hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)]"
                       >
-                        Ativar Agora
+                        Ativar SSL Agora
                       </button>
                     </div>
                   )}

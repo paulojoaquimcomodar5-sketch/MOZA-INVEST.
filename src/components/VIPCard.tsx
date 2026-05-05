@@ -31,7 +31,12 @@ const VIPCard: React.FC<VIPCardProps> = ({ plan, onJoin, userLevel }) => {
       
       {!isCurrent ? (
         <motion.button 
-          onClick={onJoin}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onJoin();
+          }}
+          type="button"
           animate={{ 
             scale: [1, 1.05, 1],
             boxShadow: [

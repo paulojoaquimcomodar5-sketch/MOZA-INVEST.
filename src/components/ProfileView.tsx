@@ -190,7 +190,13 @@ export default function ProfileView({ user, onLogout, onWithdraw, onNavigate, on
             <span className="h-px w-4 bg-accent/30"></span>
           </div>
           {!isEditingProfile && (
-            <p className="text-text-secondary text-[9px] mt-2 font-mono opacity-60 tracking-wider font-bold">{user?.phone}</p>
+            <div className="mt-3 flex flex-col items-center gap-1">
+              <p className="text-text-secondary text-[9px] font-mono opacity-60 tracking-wider font-bold">{user?.phone}</p>
+              <div className="bg-bg/50 px-3 py-1 rounded-full border border-border/50 flex items-center gap-2 mt-1">
+                <small className="text-[7px] text-text-secondary uppercase tracking-widest font-black">Convite:</small>
+                <b className="text-[10px] text-accent font-mono tracking-tighter">{user?.inviteCode || '...'}</b>
+              </div>
+            </div>
           )}
         </div>
       </div>

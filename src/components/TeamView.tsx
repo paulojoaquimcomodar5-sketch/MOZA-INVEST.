@@ -61,7 +61,25 @@ export default function TeamView({ user }: TeamViewProps) {
         <p className="text-text-secondary text-[11px] mb-4 leading-relaxed uppercase tracking-wider">
           {t('invite_desc')}
         </p>
-        
+
+        <div className="flex gap-2 mb-4">
+          <div className="flex-1 bg-bg border border-border p-4 rounded-xl flex flex-col items-center justify-center">
+            <small className="text-[7px] text-text-secondary uppercase tracking-[2px] font-black mb-1">Seu Código Único</small>
+            <span className="text-xl font-mono text-accent font-black tracking-widest">{user?.inviteCode || '...'}</span>
+          </div>
+          <button 
+            onClick={() => {
+              if (user?.inviteCode) {
+                navigator.clipboard.writeText(user.inviteCode);
+                alert("Código copiado!");
+              }
+            }}
+            className="bg-surface border border-border px-5 rounded-xl hover:border-accent active:scale-95 transition-all text-accent"
+          >
+            <Copy size={20} />
+          </button>
+        </div>
+
         <div className="flex gap-2">
           <input 
             type="text" 

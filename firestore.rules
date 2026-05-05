@@ -59,5 +59,13 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if false; // Only manageable via Firebase Console or special script
     }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAdmin();
+      allow update: if (isSignedIn() && request.auth.uid == userId && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['profileImage', 'name']))
+        || isAdmin();
+    }
   }
 }

@@ -88,9 +88,14 @@ export default function VIPView({ user, onActivate, vipPlans }: VIPViewProps) {
               </div>
 
               <button 
-                onClick={() => onActivate(v)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onActivate(v);
+                }}
+                type="button"
                 disabled={isCurrent}
-                className={`w-full font-bold py-4 rounded-lg text-xs uppercase tracking-[2px] shadow-lg transition-all ${isCurrent ? 'bg-white/5 text-white/20 cursor-default border border-white/5' : 'bg-accent text-bg hover:opacity-90 active:scale-95 shadow-accent/10'}`}
+                className={`w-full font-bold py-4 rounded-lg text-xs uppercase tracking-[2px] shadow-lg transition-all active:scale-95 ${isCurrent ? 'bg-white/5 text-white/20 cursor-default border border-white/5' : 'bg-accent text-bg hover:bg-white hover:text-accent shadow-accent/10'}`}
               >
                 {isCurrent ? 'PLANO ACTUAL' : 'ACTIVAR AGORA'}
               </button>

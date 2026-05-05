@@ -27,9 +27,33 @@
         "validInviteCode": { "type": "string" },
         "paymentMethods": { "type": "array" }
       }
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user in the platform",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "name": { "type": "string" },
+        "balance": { "type": "number" },
+        "fundBalance": { "type": "number" },
+        "totalProfit": { "type": "number" },
+        "level": { "type": "string" },
+        "status": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "upline": { "type": "string" },
+        "tickets": { "type": "number" },
+        "profileImage": { "type": "string" },
+        "joinedAt": { "type": "string" }
+      },
+      "required": ["phone", "name", "balance"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of registered users"
+    },
     "/messages/{messageId}": {
       "schema": "Message",
       "description": "Collection of community chat messages"

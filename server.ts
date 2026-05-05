@@ -1,20 +1,20 @@
 import express from "express";
+import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { adminDb } from "./src/lib/firebase-admin";
+import { adminDb, adminAuth } from "./src/lib/firebase-admin";
 import firebaseConfig from "./firebase-applet-config.json";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  // State for Admin oversight
   const DB_FILE = path.join(process.cwd(), 'db.json');
-
+  
   let state = {
     messages: [] as any[],
     banners: [
@@ -31,9 +31,9 @@ async function startServer() {
       { id: 'fb_moza', title: 'Comunidade Moza: O Futuro dos Investimentos', platform: 'Facebook', reward: 0, videoUrl: 'https://www.youtube.com/embed/0_S0SjX7q1c', duration: 12 },
     ] as any[],
     registeredUsers: [
-      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'ADMIN' },
-      { phone: '875376446', name: 'LUISA ZULANE MALUMBE', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin', inviteCode: 'LUISA' },
-      { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: '123', inviteCode: 'MOZA2026' }
+      { phone: '+55 21 98124-5002', name: 'ADMINISTRADOR', balance: 155440000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin-luxury-2026', inviteCode: 'ADMIN' },
+      { phone: '875376446', name: 'LUISA ZULANE MALUMBE', balance: 1000000, fundBalance: 0, totalProfit: 0, level: 'VIP 4', password: 'admin-luisa-2026', inviteCode: 'LUISA' },
+      { phone: '123', name: 'Teste User', balance: 500, fundBalance: 0, totalProfit: 0, level: 'Membro Grátis', password: 'password123', inviteCode: 'MOZA2026' }
     ] as any[],
     validInviteCode: "MOZA2026",
     appStatus: 'OPEN' as 'OPEN' | 'MAINTENANCE' | 'CLOSED' | 'RESTRICTED',
@@ -94,6 +94,16 @@ async function startServer() {
         validInviteCode: state.validInviteCode,
         paymentMethods: state.paymentMethods
       });
+
+      // Sync users (Limit to top 100 to avoid large batches)
+      if (state.registeredUsers.length > 0) {
+        const batch = adminDb.batch();
+        state.registeredUsers.slice(0, 100).forEach(u => {
+          const docRef = adminDb.collection('users').doc(normalizePhone(u.phone));
+          batch.set(docRef, { ...u, password: '***' }); // Don't store plain passwords in Firestore
+        });
+        await batch.commit();
+      }
       console.log("[FIREBASE] State synced successfully");
     } catch (e: any) {
       if (e.message.includes('PERMISSION_DENIED') || e.code === 7) {
@@ -153,7 +163,11 @@ async function startServer() {
   }
 
   // Initial load from cloud
-  await loadFromFirestore();
+  try {
+    await loadFromFirestore();
+  } catch (err) {
+    console.error("[SERVER] Fatal load error:", err);
+  }
 
   // Migration: Ensure all state properties exist and are of correct type
   state.registeredUsers = Array.isArray(state.registeredUsers) ? state.registeredUsers : [];
@@ -172,12 +186,38 @@ async function startServer() {
     };
   }
 
-  state.registeredUsers.forEach(u => {
+  state.registeredUsers.forEach(async (u) => {
     if (u.level === undefined) u.level = 'Membro Grátis';
     if (u.tickets === undefined) u.tickets = 0;
     if (u.profileImage === undefined) u.profileImage = '';
     if (!u.inviteCode || u.inviteCode === 'MOZA2026') {
-      u.inviteCode = 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      u.inviteCode = 'MZ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+    
+    // Ensure they have a Firebase Auth account
+    if (firebaseEnabled && u.phone) {
+      const targetPhone = normalizePhone(u.phone);
+      try {
+        await adminAuth.getUserByEmail(`${targetPhone}@moza.com`);
+      } catch (e: any) {
+        if (e.code === 'auth/user-not-found') {
+          try {
+            const password = u.password || 'moza1234';
+            // Firebase requires at least 6 characters
+            const safePassword = password.length >= 6 ? password : password.padEnd(6, '0');
+            
+            await adminAuth.createUser({
+              uid: targetPhone,
+              email: `${targetPhone}@moza.com`,
+              password: safePassword,
+              displayName: u.name
+            });
+            console.log(`[FIREBASE] Migrated user to Auth: ${targetPhone} (Password length: ${safePassword.length})`);
+          } catch (createErr: any) {
+             console.error(`[FIREBASE] Failed to migrate user ${targetPhone}: ${createErr.message}`);
+          }
+        }
+      }
     }
   });
 
@@ -193,6 +233,7 @@ async function startServer() {
   }
 
   const app = express();
+  app.use(cors());
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
     maxHttpBufferSize: 1e7,
@@ -236,7 +277,7 @@ async function startServer() {
   };
 
   // Fast REST Login Endpoint (Step 1: Credentials)
-  app.post("/api/login", (req, res) => {
+  app.post("/api/login", async (req, res) => {
     console.log(`[REST] Login request: ${JSON.stringify(req.body)}`);
     const { phone, password } = req.body;
     
@@ -245,7 +286,7 @@ async function startServer() {
     const providedPassword = (password || '').toString().trim();
 
     // Admin Fallback (Absolute priority)
-    if ((rawPhone === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin') {
+    if ((rawPhone === 'admin' || targetPhone === '5521981245002') && providedPassword === 'admin-luxury-2026') {
       const fallbackAdmin = state.registeredUsers.find(u => normalizePhone(u.phone) === '5521981245002') || state.registeredUsers[0];
       return res.json({ success: true, user: fallbackAdmin });
     }
@@ -258,6 +299,29 @@ async function startServer() {
     if (user) {
       if (user.status === 'SUSPENDED') {
         return res.status(403).json({ success: false, message: "Sua conta está suspensa." });
+      }
+
+      // Proactive Firebase Auth Migration
+      if (firebaseEnabled && !rawPhone.includes('admin')) {
+        const email = `${targetPhone}@moza.com`;
+        try {
+          await adminAuth.getUserByEmail(email);
+        } catch (e: any) {
+          if (e.code === 'auth/user-not-found') {
+            try {
+              const safePassword = providedPassword.length >= 6 ? providedPassword : providedPassword.padEnd(6, '0');
+              await adminAuth.createUser({
+                uid: targetPhone,
+                email,
+                password: safePassword,
+                displayName: user.name
+              });
+              console.log(`[FIREBASE] Proactively migrated user during login: ${targetPhone}`);
+            } catch (createErr) {
+              console.error(`[FIREBASE] Failed proactive migration:`, createErr);
+            }
+          }
+        }
       }
 
       // Generate OTP
@@ -311,6 +375,62 @@ async function startServer() {
     return res.json({ success: true, message: "Código enviado com sucesso!" });
   });
 
+  app.post("/api/forgot-password", (req, res) => {
+    const { phone } = req.body;
+    const targetPhone = normalizePhone(phone);
+    
+    const user = state.registeredUsers.find(u => normalizePhone(u.phone) === targetPhone);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Utilizador não encontrado no sistema." });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    state.pendingOTPs[targetPhone] = {
+      code: otpCode,
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes for recovery
+      userData: { ...user, isResetting: true }
+    };
+
+    console.log(`\n[RECOVERY GATEWAY] \nTO: +258 ${targetPhone}\nCODE: ${otpCode}\n`);
+    io.emit("simulated_sms_received", { from: "RECUPERAÇÃO", message: `Código Moza Inv: ${otpCode}`, code: otpCode });
+
+    return res.json({ success: true, message: "Código enviado!" });
+  });
+
+  app.post("/api/reset-password", async (req, res) => {
+    const { phone, code, newPassword } = req.body;
+    const targetPhone = normalizePhone(phone);
+    
+    const otpData = state.pendingOTPs[targetPhone];
+    if (!otpData || otpData.code !== code || Date.now() > otpData.expires) {
+      return res.status(400).json({ success: false, message: "Código inválido ou expirado." });
+    }
+
+    const userIndex = state.registeredUsers.findIndex(u => normalizePhone(u.phone) === targetPhone);
+    if (userIndex !== -1) {
+      state.registeredUsers[userIndex].password = newPassword;
+      
+      // Sync with Firebase Auth
+      if (firebaseEnabled) {
+        try {
+          const safePassword = newPassword.length >= 6 ? newPassword : newPassword.padEnd(6, '0');
+          await adminAuth.updateUser(targetPhone, {
+            password: safePassword
+          });
+          console.log(`[FIREBASE] Auth password reset for ${targetPhone}`);
+        } catch (e: any) {
+          console.error(`[FIREBASE] Reset error for ${targetPhone}:`, e.message);
+        }
+      }
+      
+      saveState();
+      delete state.pendingOTPs[targetPhone];
+      return res.json({ success: true, message: "Senha alterada com sucesso!" });
+    }
+
+    res.status(404).json({ success: false, message: "Utilizador não encontrado." });
+  });
+
   app.post("/api/verify-otp", (req, res) => {
     const { phone, code } = req.body;
     const targetPhone = normalizePhone(phone);
@@ -347,7 +467,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/register", (req, res) => {
+  app.post("/api/register", async (req, res) => {
     const { phone, password, inviteCode, name } = req.body;
     
     const targetPhone = normalizePhone(phone);
@@ -366,7 +486,7 @@ async function startServer() {
       phone,
       password,
       name,
-      inviteCode: 'MZ-' + Math.random().toString(36).substring(2, 6).toUpperCase(),
+      inviteCode: 'MZ-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
       balance: 0,
       fundBalance: 0,
       totalProfit: 0,
@@ -376,6 +496,27 @@ async function startServer() {
     };
 
     state.registeredUsers.push(newUser);
+    
+    // Also create in Firebase Auth if enabled
+    if (firebaseEnabled) {
+      try {
+        const email = `${targetPhone}@moza.com`;
+        await adminAuth.createUser({
+          uid: targetPhone,
+          email: email,
+          password: password,
+          displayName: name
+        });
+        console.log(`[FIREBASE] Auth user created: ${email}`);
+      } catch (authError: any) {
+        if (authError.code === 'auth/email-already-exists' || authError.code === 'auth/uid-already-exists') {
+          console.log("[FIREBASE] Auth user already exists, skipping creation");
+        } else {
+          console.error("[FIREBASE] Error creating auth user:", authError.message);
+        }
+      }
+    }
+
     saveState();
     res.json({ success: true, user: newUser });
   });
@@ -520,7 +661,7 @@ async function startServer() {
           socket.emit("login_response", { success: false, message: "Palavra-passe incorrecta." });
         } else {
           // Special fallback for admin if for some reason the DB is cleared/corrupted
-          if ((phone.toLowerCase() === 'admin' || targetPhone === '5521981245002') && password === 'admin') {
+          if ((phone.toLowerCase() === 'admin' || targetPhone === '5521981245002') && password === 'admin-luxury-2026') {
               const fallbackAdmin = state.registeredUsers.find(u => normalizePhone(u.phone) === '5521981245002') || state.registeredUsers[0];
              console.log("[AUTH] Using Admin Fallback");
              socket.emit("login_response", { success: true, user: fallbackAdmin });
@@ -545,7 +686,7 @@ async function startServer() {
       }
 
       if (!state.registeredUsers.find(u => u.phone === userData.phone)) {
-        const generatedCode = 'MZ-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        const generatedCode = 'MZ-' + Math.random().toString(36).substr(2, 8).toUpperCase();
         const newUser = { 
           phone: userData.phone, 
           name: userData.name || 'Investidor Gold', 
